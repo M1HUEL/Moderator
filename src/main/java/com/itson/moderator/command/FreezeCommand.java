@@ -123,8 +123,11 @@ public final class FreezeCommand implements SubCommand {
 
     Feedback.send(context, target, "frozen-screen", "reason", text, "staff", sender.getName());
     Feedback.send(context, sender, "frozen-staff", "player", target.getName(), "reason", text);
-    Feedback.broadcast(context, "frozen-broadcast", "player", target.getName(), "reason", text,
-        "staff", sender.getName());
+
+    if (context.config().broadcastPunishments()) {
+      Feedback.broadcast(context, "frozen-broadcast", "player", target.getName(), "reason", text,
+          "staff", sender.getName());
+    }
   }
 
   private void release(ModContext context, CommandSender sender, Player target) {
@@ -136,6 +139,9 @@ public final class FreezeCommand implements SubCommand {
 
     Feedback.send(context, target, "unfrozen-screen", "staff", sender.getName());
     Feedback.send(context, sender, "unfrozen-staff", "player", target.getName());
-    Feedback.broadcast(context, "unfrozen-broadcast", "player", target.getName(), "staff", sender.getName());
+
+    if (context.config().broadcastPunishments()) {
+      Feedback.broadcast(context, "unfrozen-broadcast", "player", target.getName(), "staff", sender.getName());
+    }
   }
 }

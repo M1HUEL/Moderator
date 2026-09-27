@@ -14,7 +14,8 @@
 # matching threshold wins, so the list does not have to be ordered.
 
 settings:
-  # Announce sanctions to staff, or only to whoever typed the command.
+  # Announce sanctions to staff, or only to whoever typed the command. Freezes
+  # and the automatic follow-ups count as sanctions here.
   broadcast-punishments: true
   broadcast-reports: true
   # Lift bans and IP bans automatically once they run out.

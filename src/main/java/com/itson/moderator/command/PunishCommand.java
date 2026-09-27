@@ -230,11 +230,13 @@ public final class PunishCommand implements SubCommand {
     if (!silent && context.config().broadcastPunishments()) {
       Feedback.broadcast(context, "punish-broadcast", "type", type.label(), "player", target.name(), "reason", reason,
           "duration", lifetime, "staff", staff.name());
-    }
 
-    for (Punishment followUp : outcome.followUps()) {
-      Feedback.broadcast(context, "auto-punish", "type", followUp.type().label(), "player", followUp.targetName(),
-          "reason", followUp.reason(), "duration", followUp.lifetimeAt(context.moderation().now()));
+      // Follow-ups belong to the same chain, so -s silences them too. Announcing
+      // an automatic ban the moderator asked to keep quiet defeats the flag.
+      for (Punishment followUp : outcome.followUps()) {
+        Feedback.broadcast(context, "auto-punish", "type", followUp.type().label(), "player", followUp.targetName(),
+            "reason", followUp.reason(), "duration", followUp.lifetimeAt(context.moderation().now()));
+      }
     }
   }
 
