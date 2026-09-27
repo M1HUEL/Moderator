@@ -22,6 +22,13 @@ import org.jetbrains.annotations.NotNull;
  *
  * <p>Deliberately not a {@code /mod} subcommand: it is meant to be available to
  * everyone, while {@code /mod} is gated behind staff permissions.
+ *
+ * <p>Reason ids come from config rather than from an enum, so a server can add
+ * categories without a new build. The id is lowercased on the way in, so
+ * {@code Griefing} and {@code griefing} are the same report.
+ *
+ * <p>The reporter's own record is registered before the report is opened, so a
+ * player who reports and immediately leaves still appears in the history.
  */
 public final class ReportCommand implements CommandExecutor, TabCompleter {
 
@@ -31,6 +38,13 @@ public final class ReportCommand implements CommandExecutor, TabCompleter {
     this.context = context;
   }
 
+  /**
+   * Opens a report, in the order the checks should fail: not a player, missing
+   * arguments, still cooling down, unknown target, then reporting yourself.
+   *
+   * <p>The cooldown is only started once the report exists, so a rejected attempt
+   * does not cost the player their next report.
+   */
   @Override
   public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label,
       @NotNull String[] args) {
@@ -92,6 +106,7 @@ public final class ReportCommand implements CommandExecutor, TabCompleter {
     return true;
   }
 
+  /** Offers other players, then the configured reason ids. */
   @Override
   public @NotNull List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
       @NotNull String label, @NotNull String[] args) {

@@ -17,6 +17,13 @@ import org.jetbrains.annotations.NotNull;
  * <p>Revoking always works on the most recent active punishment of that type and
  * reports what it lifted, because the staff member usually needs to tell the
  * player why they are free again.
+ *
+ * <p>One class for all three: they differ only in the type they revoke and, for
+ * {@code unbanip}, in accepting a raw address as well as a player name.
+ *
+ * <p>Note is free text and is stored on the revoked entry, so the history keeps
+ * the reasoning behind lifting a sanction and not just the fact that it was
+ * lifted.
  */
 public final class RevokeCommand implements SubCommand {
 
@@ -28,6 +35,7 @@ public final class RevokeCommand implements SubCommand {
 
   private final PunishmentType type;
 
+  /** Whether this command also accepts a bare address instead of a player name. */
   private final boolean acceptsAddress;
 
   private final String description;
@@ -42,6 +50,12 @@ public final class RevokeCommand implements SubCommand {
     this.description = description;
   }
 
+  /**
+   * The three instances the command dispatcher registers.
+   *
+   * <p>{@code unbanip} shares {@code moderator.banip} with {@code banip}: lifting
+   * an address ban is the same trust as creating one.
+   */
   public static @NotNull List<SubCommand> all() {
     return List.of(
         new RevokeCommand("unmute", List.of(), "moderator.unmute", PunishmentType.MUTE, false, "Lifts a mute"),
@@ -75,6 +89,13 @@ public final class RevokeCommand implements SubCommand {
     return description;
   }
 
+  /**
+   * Resolves the target, revokes its most recent active sanction of this type and
+   * reports the outcome.
+   *
+   * <p>Saves only after a sanction was actually lifted, so a no-op revoke does not
+   * rewrite {@code data.yml}.
+   */
   @Override
   public void execute(@NotNull ModContext context, @NotNull CommandSender sender, @NotNull String[] args) {
     if (args.length == 0) {
@@ -123,6 +144,7 @@ public final class RevokeCommand implements SubCommand {
     context.moderation().save();
   }
 
+  /** Offers online names, lowercased as the target resolver expects them. */
   @Override
   public @NotNull List<String> complete(@NotNull ModContext context, @NotNull CommandSender sender,
       @NotNull String[] args) {
@@ -130,6 +152,14 @@ public final class RevokeCommand implements SubCommand {
         .toList() : List.of();
   }
 
+  /**
+   * Resolves the input as a player, falling back to a known address.
+   *
+   * <p>The fallback only applies to {@code unbanip}: revoking a name or uuid is
+   * never guessed from an address, and the player resolution wins whenever it
+   * succeeds, so a player whose name happens to look like an address is not
+   * misread.
+   */
   private TargetResolver.Resolution resolve(ModContext context, String input) {
     TargetResolver.Resolution player = context.targets().resolve(input);
 

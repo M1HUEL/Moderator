@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+/** Covers UUID parsing in the shapes a moderator might paste, dashed or not. */
 class IdsTest {
 
   private static final String UUID = "3f9a1c22-8b4d-4a1e-9c3b-77d2e5f0a1b4";

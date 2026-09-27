@@ -26,24 +26,48 @@ public interface ModerationStore {
   /** True when there are unsaved changes. */
   boolean isDirty();
 
+  /**
+   * The record of a player, creating a placeholder when they are unknown.
+   *
+   * <p>Never returns empty, so callers can read a name without a null check. An
+   * unknown player comes back as their own UUID used as the name, which is enough
+   * for a lookup that failed anyway.
+   */
   @NotNull PlayerRecord player(@NotNull UUID id);
 
+  /** Every known player, in no particular order. */
   @NotNull List<PlayerRecord> players();
 
   /** Looks a player up by the last name the plugin saw, case-insensitively. */
   Optional<PlayerRecord> playerNamed(@NotNull String name);
 
+  /** Inserts or replaces a player record, keeping the name index in step. */
   void record(@NotNull PlayerRecord record);
 
+  /** Appends a punishment, used when a sanction is first issued. */
   void add(@NotNull Punishment punishment);
 
+  /**
+   * Replaces a punishment in place, matching on its id, and appends it when the
+   * id is unknown.
+   */
   void update(@NotNull Punishment punishment);
 
+  /**
+   * Every punishment ever recorded, in insertion order.
+   *
+   * <p>Revoked and expired entries stay in this list on purpose: the history has
+   * to remain auditable. Callers that want only what is running today have to
+   * filter with {@link Punishment#isActiveAt}.
+   */
   @NotNull List<Punishment> punishments();
 
+  /** Appends a report, used when a player files one. */
   void add(@NotNull Report report);
 
+  /** Replaces a report in place, matching on its id, and appends it when unknown. */
   void update(@NotNull Report report);
 
+  /** Every report ever filed, in insertion order. */
   @NotNull List<Report> reports();
 }

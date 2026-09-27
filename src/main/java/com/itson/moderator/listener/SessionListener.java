@@ -28,6 +28,12 @@ public final class SessionListener implements Listener {
     this.context = context;
   }
 
+  /**
+   * Records the player, re-applies a freeze and tells them about active sanctions.
+   *
+   * <p>At {@link EventPriority#MONITOR} so the address is the final one other
+   * plugins produced, and so a join another plugin cancels is not acted on.
+   */
   @EventHandler(priority = EventPriority.MONITOR)
   public void onJoin(@NotNull PlayerJoinEvent event) {
     Player player = event.getPlayer();
@@ -51,6 +57,12 @@ public final class SessionListener implements Listener {
     }
   }
 
+  /**
+   * Hands back a frozen avatar, drops the player's transient state and saves.
+   *
+   * <p>Saving on quit is what makes a sanction applied to somebody who then left
+   * survive a restart.
+   */
   @EventHandler(priority = EventPriority.MONITOR)
   public void onQuit(@NotNull PlayerQuitEvent event) {
     Player player = event.getPlayer();

@@ -6,7 +6,14 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
-/** {@code /mod heal [player]}: restores health and food and clears debuffs. */
+/**
+ * {@code /mod heal [player]}: restores health and food, clears debuffs and puts
+ * out fires.
+ *
+ * <p>Health is restored against the player's own maximum rather than a fixed
+ * amount, so a player under a health boost is not healed to less than they could
+ * hold.
+ */
 public final class HealCommand extends PlayerToolCommand {
 
   @Override
@@ -34,6 +41,12 @@ public final class HealCommand extends PlayerToolCommand {
     return "Heals a player";
   }
 
+  /**
+   * Heals the player and tells them a member of staff did it.
+   *
+   * <p>No confirmation prompt: every effect here is what a player would ask for
+   * anyway, and none of it can be lost.
+   */
   @Override
   public void execute(@NotNull ModContext context, @NotNull CommandSender sender, @NotNull String[] args) {
     Player player = resolvePlayer(context, sender, args, true);
@@ -44,6 +57,8 @@ public final class HealCommand extends PlayerToolCommand {
 
     var maxHealth = player.getAttribute(Attribute.MAX_HEALTH);
 
+    // The attribute is absent on a player whose gamemode or plugin removed it,
+    // in which case the rest of the heal still goes through.
     if (maxHealth != null) {
       player.setHealth(maxHealth.getValue());
     }

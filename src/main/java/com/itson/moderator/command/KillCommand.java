@@ -5,7 +5,13 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
-/** {@code /mod kill [player]}: kills a player, for cleaning up after a mistake. */
+/**
+ * {@code /mod kill [player]}: kills a player, for cleaning up after a mistake.
+ *
+ * <p>This is a tool, not a sanction: nothing is written to the history and the
+ * death reads as an ordinary one. Use {@code /mod ban} or {@code /mod kick} when
+ * the death is meant to be on the record.
+ */
 public final class KillCommand extends PlayerToolCommand {
 
   @Override
@@ -33,6 +39,11 @@ public final class KillCommand extends PlayerToolCommand {
     return "Kills a player";
   }
 
+  /**
+   * Kills the player and tells the staff member who did it.
+   *
+   * <p>The target is not told, since a death message already covers that.
+   */
   @Override
   public void execute(@NotNull ModContext context, @NotNull CommandSender sender, @NotNull String[] args) {
     Player player = resolvePlayer(context, sender, args, true);

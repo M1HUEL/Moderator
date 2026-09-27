@@ -22,12 +22,21 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class ModCommand implements CommandExecutor, TabCompleter {
 
+  /** Needed to use {@code /mod} at all, as declared in plugin.yml. */
   public static final String ROOT_PERMISSION = "moderator.use";
 
   private final ModContext context;
 
+  /** Names and aliases, both lowercased, to the subcommand behind them. Insertion ordered for help. */
   private final Map<String, SubCommand> byName = new LinkedHashMap<>();
 
+  /**
+   * Indexes the subcommands.
+   *
+   * <p>A later subcommand may reuse an earlier alias, in which case it wins; the
+   * registration list is ordered, so a plugin main class controls that by
+   * construction rather than by luck.
+   */
   public ModCommand(@NotNull ModContext context, @NotNull List<SubCommand> commands) {
     this.context = context;
 
@@ -40,6 +49,13 @@ public final class ModCommand implements CommandExecutor, TabCompleter {
     }
   }
 
+  /**
+   * Routes to a subcommand, or prints help when none was named.
+   *
+   * <p>Always returns true: an unknown subcommand or a missing permission is
+   * answered with a message, and returning false would make the server print its
+   * own usage line on top of it.
+   */
   @Override
   public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label,
       @NotNull String[] args) {
@@ -77,6 +93,12 @@ public final class ModCommand implements CommandExecutor, TabCompleter {
     return true;
   }
 
+  /**
+   * Completes subcommand names, then delegates to the resolved subcommand.
+   *
+   * <p>Alias entries are filtered out of the name list so a command is not
+   * suggested twice, and nothing the sender lacks permission for is offered.
+   */
   @Override
   public @NotNull List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
       @NotNull String label, @NotNull String[] args) {

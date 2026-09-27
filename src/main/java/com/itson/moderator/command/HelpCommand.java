@@ -40,7 +40,13 @@ public final class HelpCommand implements SubCommand {
     send(context, sender);
   }
 
-  /** Used by the dispatcher for a bare {@code /mod}, which has no arguments. */
+  /**
+   * Used by the dispatcher for a bare {@code /mod}, which has no arguments.
+   *
+   * <p>Static so the dispatcher can print help without going through the
+   * subcommand's own argument handling, and so a context whose dispatcher is not
+   * wired yet still answers with a header instead of failing.
+   */
   public static void send(ModContext context, CommandSender sender) {
     ModCommand dispatcher = context.dispatcher();
 

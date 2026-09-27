@@ -13,6 +13,14 @@ import org.jetbrains.annotations.NotNull;
 /**
  * {@code /mod history <player> [type]}: the audit trail every moderator ends up
  * asking for, newest entry first.
+ *
+ * <p>Revoked and expired entries stay in the list and are labelled as such rather
+ * than hidden. A history that only showed what is currently in force could not
+ * answer "was this player muted before", which is usually the actual question.
+ *
+ * <p>The number of rows is capped by {@code settings.history-limit}. The header
+ * always says how many were left out, so a truncated history is never mistaken
+ * for a complete one.
  */
 public final class HistoryCommand implements SubCommand {
 
@@ -41,6 +49,12 @@ public final class HistoryCommand implements SubCommand {
     return "Shows the sanction history of a player";
   }
 
+  /**
+   * Prints the history, optionally narrowed to one type of sanction.
+   *
+   * <p>The header goes out before the emptiness check so the counts are visible
+   * either way, and the filter is validated before any history is read.
+   */
   @Override
   public void execute(@NotNull ModContext context, @NotNull CommandSender sender, @NotNull String[] args) {
     if (args.length == 0) {
@@ -98,6 +112,7 @@ public final class HistoryCommand implements SubCommand {
     }
   }
 
+  /** Offers online names, then the sanction types that can be filtered on. */
   @Override
   public @NotNull List<String> complete(@NotNull ModContext context, @NotNull CommandSender sender,
       @NotNull String[] args) {

@@ -8,7 +8,13 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
-/** {@code /mod gamemode <mode> [player]}: changes a game mode, yours by default. */
+/**
+ * {@code /mod gamemode <mode> [player]}: changes a game mode, yours by default.
+ *
+ * <p>Note the argument order is the reverse of every other tool here: the mode
+ * comes first because that is the only mandatory argument, and a mode nobody
+ * named is useless.
+ */
 public final class GameModeCommand extends PlayerToolCommand {
 
   @Override
@@ -36,6 +42,9 @@ public final class GameModeCommand extends PlayerToolCommand {
     return "Changes a game mode";
   }
 
+  /**
+   * Applies the mode, then reports it to the staff member and to the target.
+   */
   @Override
   public void execute(@NotNull ModContext context, @NotNull CommandSender sender, @NotNull String[] args) {
     if (args.length == 0) {
@@ -52,6 +61,7 @@ public final class GameModeCommand extends PlayerToolCommand {
       return;
     }
 
+    // The mode is consumed above, so whatever is left is the optional player.
     String[] rest = new String[args.length - 1];
     System.arraycopy(args, 1, rest, 0, rest.length);
 
@@ -87,6 +97,10 @@ public final class GameModeCommand extends PlayerToolCommand {
     return List.of();
   }
 
+  /**
+   * Reads a game mode by name, and by the single letter shorthands staff are used
+   * to from vanilla.
+   */
   private static Optional<GameMode> readMode(String raw) {
     String normalized = raw.toLowerCase(Locale.ROOT);
 
@@ -105,6 +119,7 @@ public final class GameModeCommand extends PlayerToolCommand {
     };
   }
 
+  /** Capitalises a mode name for display, since the enum constant is shouty. */
   private static String label(GameMode mode) {
     String name = mode.name().toLowerCase(Locale.ROOT);
 

@@ -15,12 +15,20 @@ public final class Text {
 
   private static final MiniMessage MINI = MiniMessage.miniMessage();
 
+  /** Short enough to read in a line of chat, precise enough to compare entries. */
   private static final DateTimeFormatter TIMESTAMP =
       DateTimeFormatter.ofPattern("dd/MM HH:mm").withZone(ZoneId.systemDefault());
 
   private Text() {
   }
 
+  /**
+   * Parses a config string as MiniMessage.
+   *
+   * <p>Use this only for strings the server owner wrote. Anything that came from a
+   * player must go through the overload with a tag, or a name containing
+   * {@code <} would be read as markup.
+   */
   public static Component parse(@NotNull String miniMessage) {
     return MINI.deserialize(miniMessage);
   }
@@ -39,7 +47,12 @@ public final class Text {
     return TIMESTAMP.format(instant);
   }
 
-  /** Approximate age of a record, for example {@code 3d} or {@code 12m}. */
+  /**
+   * Approximate age of a record, for example {@code 3d} or {@code 12m}.
+   *
+   * <p>A record dated in the future, from a clock that moved backwards, reports
+   * {@code 0s} rather than a negative age.
+   */
   public static String age(Instant then, Instant now) {
     Duration elapsed = Duration.between(then, now);
 

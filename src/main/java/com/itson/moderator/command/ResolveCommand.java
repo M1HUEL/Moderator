@@ -13,6 +13,13 @@ import org.jetbrains.annotations.NotNull;
 /**
  * {@code /mod resolve <id> [resolved|dismissed] [note]}: closes a report and, in
  * the same view, shows the full report so the outcome can be written against it.
+ *
+ * <p>Called with only an id it prints the report and nothing else, so staff can
+ * read one without closing it by accident.
+ *
+ * <p>Reopening is deliberately not supported: a report that was closed wrongly is
+ * closed again with the right outcome, which keeps a single line of history per
+ * report instead of an audit trail of flip flops.
  */
 public final class ResolveCommand implements SubCommand {
 
@@ -41,6 +48,12 @@ public final class ResolveCommand implements SubCommand {
     return "Closes a player report";
   }
 
+  /**
+   * Shows the report, then closes it when a status was given.
+   *
+   * <p>The order matters: a staff member who typed only an id still sees what
+   * they are about to close.
+   */
   @Override
   public void execute(@NotNull ModContext context, @NotNull CommandSender sender, @NotNull String[] args) {
     if (args.length == 0) {
@@ -83,6 +96,8 @@ public final class ResolveCommand implements SubCommand {
       status = parsed.get();
     }
 
+    // OPEN is reachable through byId but makes no sense as an outcome, so it is
+    // refused here rather than being a special case in the config.
     if (status == ReportStatus.OPEN) {
       Feedback.invalid(context, sender, "invalid-status", args[1]);
 
@@ -107,6 +122,7 @@ public final class ResolveCommand implements SubCommand {
     notifyReporter(context, report, status);
   }
 
+  /** Offers the ids of open reports, then the two outcomes. */
   @Override
   public @NotNull List<String> complete(@NotNull ModContext context, @NotNull CommandSender sender,
       @NotNull String[] args) {
@@ -121,6 +137,7 @@ public final class ResolveCommand implements SubCommand {
     return List.of();
   }
 
+  /** Prints the whole report, with the free text details or a dash when there are none. */
   private static void show(ModContext context, CommandSender sender, Report report) {
     Feedback.send(context, sender, "report-detail", "id", report.id(), "target", report.targetName(), "reporter",
         report.reporterName(), "reason", report.reasonId(), "details",

@@ -15,6 +15,10 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Covers what a punishment says about itself over time: when it is still in
+ * force, what is left of it, and how permanent and self sanctions differ.
+ */
 class PunishmentTest {
 
   private static final UUID TARGET = UUID.fromString("11111111-1111-1111-1111-111111111111");

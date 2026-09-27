@@ -4,7 +4,17 @@ import java.util.List;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
 
-/** {@code /mod reload}: re-reads config.yml and rebuilds the mute cache. */
+/**
+ * {@code /mod reload}: re-reads config.yml and rebuilds the mute cache.
+ *
+ * <p>Only configuration is reloaded. The history in {@code data.yml} is left
+ * alone on purpose: it is data, not settings, and reloading it while a sanction
+ * is in flight would drop entries.
+ *
+ * <p>The mute cache is rebuilt because a reload can change which commands a
+ * muted player is allowed to run, and because a config edit is the usual reason
+ * to want the plugin to start over from a known state.
+ */
 public final class ReloadCommand implements SubCommand {
 
   @Override
@@ -32,6 +42,12 @@ public final class ReloadCommand implements SubCommand {
     return "Reloads the configuration";
   }
 
+  /**
+   * Reloads the config and reports anything that had to be ignored.
+   *
+   * <p>The problems are listed in chat, not just on the console, so whoever
+   * edited the file finds out without leaving the game.
+   */
   @Override
   public void execute(@NotNull ModContext context, @NotNull CommandSender sender, @NotNull String[] args) {
     context.config().load(context.plugin());

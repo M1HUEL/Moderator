@@ -10,8 +10,16 @@ import org.jetbrains.annotations.Nullable;
  * <p>Kept deliberately small: the last known name and IP are what make sanctions
  * still reachable after a player renames or reconnects from another connection.
  */
+/**
+ * @param id        never null, the identity everything else hangs off
+ * @param name      the last name seen, which is what staff will type
+ * @param lastIp    the last address seen, or null if none is known
+ * @param firstSeen when the plugin first saw this player, preserved across renames
+ * @param lastSeen  when the player was last here
+ */
 public record PlayerRecord(UUID id, String name, @Nullable String lastIp, Instant firstSeen, Instant lastSeen) {
 
+  /** Rejects a record that could not be persisted or looked up later. */
   public PlayerRecord {
     if (id == null) {
       throw new IllegalArgumentException("id must not be null");
@@ -26,6 +34,7 @@ public record PlayerRecord(UUID id, String name, @Nullable String lastIp, Instan
     }
   }
 
+  /** A record for a player seen for the first time. */
   public static PlayerRecord of(UUID id, String name, @Nullable String lastIp, Instant now) {
     return new PlayerRecord(id, name, lastIp, now, now);
   }

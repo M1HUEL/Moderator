@@ -60,6 +60,13 @@ public final class MuteListener implements Listener {
     reply(player, context.messages().renderPrefixed("muted-command"));
   }
 
+  /**
+   * The refusal shown in chat, with the mute details when there is a mute to
+   * describe.
+   *
+   * <p>Showing the reason, the staff member and the remaining time is the point:
+   * a player who cannot talk should not have to ask why.
+   */
   private Component mutedChatMessage(Player player) {
     Messages messages = context.messages();
     Punishment mute = context.mutes().activeMute(player.getUniqueId()).orElse(null);

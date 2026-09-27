@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+/** Covers address recognition and parsing, including the IPv6 shapes staff actually paste. */
 class AddressesTest {
 
   @ParameterizedTest

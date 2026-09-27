@@ -35,6 +35,13 @@ public final class FreezeListener implements Listener {
     this.context = context;
   }
 
+  /**
+   * Refuses position changes for a frozen player.
+   *
+   * <p>Guarded on {@code hasChangedPosition} so looking around and leaning against
+   * a wall still work, which matters because the client keeps sending these
+   * packets either way.
+   */
   @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
   public void onMove(@NotNull PlayerMoveEvent event) {
     if (!frozen(event.getPlayer()) || !event.hasChangedPosition()) {
@@ -124,6 +131,12 @@ public final class FreezeListener implements Listener {
     }
   }
 
+  /**
+   * Whether the player is currently frozen.
+   *
+   * <p>One place for every handler to ask, so the freeze set stays the single
+   * source of truth.
+   */
   private boolean frozen(Player player) {
     return context.freeze().isFrozen(player.getUniqueId());
   }

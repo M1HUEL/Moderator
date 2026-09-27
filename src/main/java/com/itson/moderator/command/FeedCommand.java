@@ -5,7 +5,13 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
-/** {@code /mod feed [player]}: refills hunger and clears the exhaustion that causes it. */
+/**
+ * {@code /mod feed [player]}: refills hunger and clears the exhaustion that causes
+ * it.
+ *
+ * <p>Clearing exhaustion as well as hunger is the part that matters: refilling
+ * the bar alone leaves a player who just sprinted empty again within seconds.
+ */
 public final class FeedCommand extends PlayerToolCommand {
 
   @Override
@@ -33,6 +39,7 @@ public final class FeedCommand extends PlayerToolCommand {
     return "Feeds a player";
   }
 
+  /** Feeds the player and tells them a member of staff did it. */
   @Override
   public void execute(@NotNull ModContext context, @NotNull CommandSender sender, @NotNull String[] args) {
     Player player = resolvePlayer(context, sender, args, true);

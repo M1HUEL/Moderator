@@ -6,8 +6,20 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
-/** {@code /mod tp [player]}: teleports to a player, or brings one to you. */
+/**
+ * {@code /mod tp <player>}: brings a player to you.
+ *
+ * <p>A name is required. With no name this is a usage error, not a teleport to
+ * the nearest player.
+ *
+ * <p>Pulling someone is limited to {@value #MAX_REACH} blocks and to the same
+ * world, so staff cannot use the command to bring a player across a dimension
+ * or from the other side of the map.
+ */
 public final class TeleportCommand extends PlayerToolCommand {
+
+  /** How close a player has to be before they can be brought over. */
+  private static final double MAX_REACH = 32d;
 
   @Override
   public boolean playerOnly() {
@@ -39,6 +51,12 @@ public final class TeleportCommand extends PlayerToolCommand {
     return "Teleports to a player, or brings them to you";
   }
 
+  /**
+   * Brings the named player to the sender.
+   *
+   * <p>Self is refused first, so being named by accident is a message rather than
+   * a pointless teleport.
+   */
   @Override
   public void execute(@NotNull ModContext context, @NotNull CommandSender sender, @NotNull String[] args) {
     if (!(sender instanceof Player actor)) {
@@ -64,7 +82,7 @@ public final class TeleportCommand extends PlayerToolCommand {
       return;
     }
 
-    if (!withinReach(actor, target, 32d)) {
+    if (!withinReach(actor, target, MAX_REACH)) {
       Feedback.send(context, sender, "tp-too-far", "player", target.getName());
 
       return;

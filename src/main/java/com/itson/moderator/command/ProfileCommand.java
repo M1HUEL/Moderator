@@ -14,6 +14,13 @@ import org.jetbrains.annotations.NotNull;
 /**
  * {@code /mod profile <player>}: the one screen a moderator needs before
  * deciding, gathering identity, address, active sanctions and open reports.
+ *
+ * <p>Deliberately read only. Nothing here changes state, so it is safe to open on
+ * a player staff are only curious about.
+ *
+ * <p>Two report counts are shown on purpose: the ones filed against this player,
+ * and the ones open on the whole server. A moderator triaging a report needs both
+ * to judge whether the report fits the pattern.
  */
 public final class ProfileCommand implements SubCommand {
 
@@ -42,6 +49,12 @@ public final class ProfileCommand implements SubCommand {
     return "Shows everything known about a player";
   }
 
+  /**
+   * Prints the player summary followed by their most recent notes.
+   *
+   * <p>Notes are shown because they carry the context sanctions cannot: why staff
+   * were watching somebody.
+   */
   @Override
   public void execute(@NotNull ModContext context, @NotNull CommandSender sender, @NotNull String[] args) {
     if (args.length == 0) {
@@ -93,6 +106,7 @@ public final class ProfileCommand implements SubCommand {
     return args.length <= 1 ? Args.onlineNames() : List.of();
   }
 
+  /** The three most recent notes, which is enough context without flooding chat. */
   private static List<Punishment> latestNotes(ModContext context, Target target) {
     return context.moderation().notes(target.id()).stream().limit(3).toList();
   }

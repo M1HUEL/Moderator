@@ -6,7 +6,14 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
-/** {@code /mod clear [player]}: empties the inventory, optionally only one section. */
+/**
+ * {@code /mod clear [player] [inventory|armor|all]}: empties an inventory, one
+ * section of it or all of it.
+ *
+ * <p>Clearing a section other than {@code all} leaves the rest untouched, which
+ * is the difference from a plain {@code /clear}: staff usually want the hotbar
+ * gone without throwing away a full main inventory.
+ */
 public final class ClearCommand extends PlayerToolCommand {
 
   @Override
@@ -34,6 +41,13 @@ public final class ClearCommand extends PlayerToolCommand {
     return "Clears a player inventory";
   }
 
+  /**
+   * Clears the requested section and tells both the staff member and the player
+   * about it.
+   *
+   * <p>The staff member is notified even when the target is the one who ran the
+   * command, so an audit of who cleared what stays complete.
+   */
   @Override
   public void execute(@NotNull ModContext context, @NotNull CommandSender sender, @NotNull String[] args) {
     Player player = resolvePlayer(context, sender, args, true);
@@ -45,6 +59,8 @@ public final class ClearCommand extends PlayerToolCommand {
     String section = args.length > 1 ? args[1].toLowerCase(java.util.Locale.ROOT) : "all";
 
     switch (section) {
+      // Storage and armour are separate arrays, so both have to be written for
+      // "all": clear() alone would leave the armour on.
       case "inventory" -> player.getInventory().setStorageContents(new ItemStack[36]);
       case "armor" -> player.getInventory().setArmorContents(null);
       case "all" -> {

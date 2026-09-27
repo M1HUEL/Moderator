@@ -54,6 +54,13 @@ public final class ModerationConfig {
 
   private int historyLimit = 20;
 
+  /**
+   * Rereads config.yml and replaces the whole snapshot at once.
+   *
+   * <p>Rebuilding instead of mutating is what makes {@code /mod reload} safe: a
+   * command in flight either sees the old config or the new one, never half of
+   * each.
+   */
   public void load(@NotNull JavaPlugin plugin) {
     problems.clear();
 
@@ -88,10 +95,17 @@ public final class ModerationConfig {
     }
   }
 
+  /** The message renderer, already built from the messages section. */
   public Messages messages() {
     return messages;
   }
 
+  /**
+   * Everything that had to be ignored or defaulted while reading, for the
+   * console and for {@code /mod reload}.
+   *
+   * <p>Empty means the file was read exactly as written.
+   */
   public List<String> problems() {
     return List.copyOf(problems);
   }
@@ -101,10 +115,17 @@ public final class ModerationConfig {
     return List.copyOf(reasons.values());
   }
 
+  /** Every configured reason id, used for tab completion of the reason argument. */
   public List<String> reasonIds() {
     return List.copyOf(reasons.keySet());
   }
 
+  /**
+   * Looks a reason up by its configured id, case-insensitively.
+   *
+   * <p>Empty means the staff member typed free text instead of a known id, which
+   * is allowed and stored as the reason text itself.
+   */
   public Optional<Reason> reason(String id) {
     if (id == null) {
       return Optional.empty();
@@ -118,34 +139,57 @@ public final class ModerationConfig {
     return reasons.values().stream().filter(reason -> reason.supports(type)).map(Reason::id).toList();
   }
 
+  /**
+   * The automatic punishment rules, ordered by descending threshold.
+   *
+   * <p>{@code ModerationService} relies on that order when it picks which rule a
+   * player has just crossed.
+   */
   public List<AutoPunishRule> autoPunish() {
     return autoPunish;
   }
 
+  /** Whether a sanction is announced to everyone. */
   public boolean broadcastPunishments() {
     return broadcastPunishments;
   }
 
+  /** Whether a filed report is announced to everyone. */
   public boolean broadcastReports() {
     return broadcastReports;
   }
 
+  /**
+   * Whether a ban is lifted from the vanilla list once it runs out.
+   *
+   * <p>On by default, since the vanilla list expires bans on its own anyway; the
+   * setting exists for servers that also want the plugin to pardon explicitly.
+   */
   public boolean autoUnbanOnExpiry() {
     return autoUnbanOnExpiry;
   }
 
+  /** Whether a muted player is stopped from running commands, not just from chatting. */
   public boolean muteBlocksCommands() {
     return muteBlocksCommands;
   }
 
+  /** Whether a frozen player is stopped from moving, interacting and using commands. */
   public boolean freezeBlocksInteractions() {
     return freezeBlocksInteractions;
   }
 
+  /** Whether staff are told what a joining player is still banned or muted for. */
   public boolean notifyOnLogin() {
     return notifyOnLogin;
   }
 
+  /**
+   * How many rows the history view shows.
+   *
+   * <p>Floored at one, so a mistaken zero does not leave staff with an empty
+   * screen and no clue why.
+   */
   public int historyLimit() {
     return historyLimit;
   }
@@ -176,6 +220,13 @@ public final class ModerationConfig {
     return Optional.ofNullable(cooldowns.get(id));
   }
 
+  /**
+   * Flattens the messages section into key to template pairs.
+   *
+   * <p>Only string leaves are taken. Nested keys are flattened with dots, which
+   * is what lets a config write {@code punish.mute-screen} and the code ask for
+   * exactly that name.
+   */
   private Map<String, String> readMessages(FileConfiguration config) {
     Map<String, String> map = new LinkedHashMap<>();
 
@@ -196,6 +247,13 @@ public final class ModerationConfig {
     return map;
   }
 
+  /**
+   * Reads the reasons section, keyed by the id staff type.
+   *
+   * <p>A reason without a label is dropped rather than shown blank, and an
+   * {@code applies} list that names an unknown type simply loses that type, so a
+   * typo in one entry does not cost the whole config.
+   */
   private Map<String, Reason> readReasons(FileConfiguration config) {
     Map<String, Reason> map = new LinkedHashMap<>();
 
@@ -242,10 +300,22 @@ public final class ModerationConfig {
     return Map.copyOf(map);
   }
 
+  /**
+   * Reads the automatic punishment rules.
+   *
+   * <p>The parsing lives in {@link AutoPunishReader} so it can be tested without
+   * a plugin instance.
+   */
   private List<AutoPunishRule> readAutoPunish(FileConfiguration config) {
     return AutoPunishReader.read(config.getList("auto-punish", List.of()), problems);
   }
 
+  /**
+   * Reads per-command cooldowns as seconds, keyed by command id and lower cased.
+   *
+   * <p>A zero or negative entry means no cooldown, so it is left out rather than
+   * stored as a duration of nothing.
+   */
   private Map<String, Duration> readCooldowns(ConfigurationSection section) {
     Map<String, Duration> map = new LinkedHashMap<>();
 
@@ -266,6 +336,10 @@ public final class ModerationConfig {
     return Map.copyOf(map);
   }
 
+  /**
+   * Normalises a list of command names, dropping any leading slash and blank
+   * entries, and lower casing what is left.
+   */
   private static Set<String> readLowerCaseSet(List<String> values) {
     Set<String> set = new LinkedHashSet<>();
 

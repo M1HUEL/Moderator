@@ -22,8 +22,20 @@ public final class CooldownService {
 
   private final Map<String, Map<UUID, Instant>> started = new ConcurrentHashMap<>();
 
+  /**
+   * Configured duration per action, replaceable on reload.
+   *
+   * <p>Defaults to "nothing is limited", which is the safe state before the config
+   * has been read.
+   */
   private volatile java.util.function.Function<String, Optional<Duration>> durations = action -> Optional.empty();
 
+  /**
+   * Points the service at the live config.
+   *
+   * <p>Kept as a function of the config rather than a copied map so a reload
+   * changes the cooldowns without anyone having to rebind by hand.
+   */
   public void bind(@NotNull ModerationConfig config) {
     this.durations = config::cooldown;
   }
@@ -73,12 +85,14 @@ public final class CooldownService {
     started.computeIfAbsent(action, key -> new ConcurrentHashMap<>()).put(player, now);
   }
 
+  /** Forgets a player's cooldowns, so staff are not locked out after a reload. */
   public void clear(@NotNull UUID player) {
     for (Map<UUID, Instant> perPlayer : started.values()) {
       perPlayer.remove(player);
     }
   }
 
+  /** Empties every action, on reload or shutdown. */
   public void reset() {
     started.clear();
   }

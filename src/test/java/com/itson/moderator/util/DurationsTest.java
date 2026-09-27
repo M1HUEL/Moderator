@@ -12,6 +12,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+/** Covers parsing and formatting of the duration syntax used in commands and config. */
 class DurationsTest {
 
   @ParameterizedTest

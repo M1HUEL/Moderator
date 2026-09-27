@@ -14,6 +14,10 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Covers the escalation table behind {@code auto-punish}: which rule wins when
+ * several match, and what a rule is allowed to count.
+ */
 class AutoPunishRuleTest {
 
   private static AutoPunishRule rule(int threshold, PunishmentType action, String... countTypes) {

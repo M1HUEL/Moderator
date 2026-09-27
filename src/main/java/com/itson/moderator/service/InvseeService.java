@@ -26,14 +26,19 @@ import org.jetbrains.annotations.NotNull;
  */
 public final class InvseeService {
 
+  /** Size of the fake container, large enough for the 36 storage slots plus armour. */
   public static final int SIZE = 54;
 
+  /** First armour slot: helmet, chestplate, leggings, boots in order. */
   public static final int ARMOR_SLOT = 0;
 
+  /** First of the 36 mirrored storage slots. */
   public static final int STORAGE_SLOT = 5;
 
+  /** Mirrored off hand slot, kept out of the storage run. */
   public static final int OFFHAND_SLOT = 45;
 
+  /** Open views, by staff member. Concurrent because listeners read it off the main thread too. */
   private final Map<UUID, Session> sessions = new ConcurrentHashMap<>();
 
   /** Opens the view, replacing a window this staff member already had open. */
@@ -145,18 +150,22 @@ public final class InvseeService {
     return session == null ? Optional.empty() : Optional.of(session.target());
   }
 
+  /** How many views are open, used by the session listener to clean up on quit. */
   public int openSessions() {
     return sessions.size();
   }
 
+  /** Forgets every session, on reload or shutdown. */
   public void reset() {
     sessions.clear();
   }
 
+  /** Grey pane used to mark the slots that are not part of the target's inventory. */
   private static ItemStack filler() {
     return new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
   }
 
+  /** One open view: who is looking, at whom, and through which window. */
   private record Session(UUID viewer, UUID target, Inventory inventory) {
   }
 }

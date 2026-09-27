@@ -10,9 +10,16 @@ import org.jetbrains.annotations.NotNull;
 /**
  * {@code /mod reports [open|all]}: the queue staff work through, oldest first,
  * because an old report is the one about to go stale.
+ *
+ * <p>Anything other than {@code all} means open reports, so a mistyped filter
+ * shows the queue rather than an empty screen.
+ *
+ * <p>The list is capped at {@value #MAX_LISTED} rows. The open count in the header
+ * is the real total, which is what makes a capped list honest.
  */
 public final class ReportsCommand implements SubCommand {
 
+  /** Rows shown at most, to keep a chat flood away from the queue. */
   private static final int MAX_LISTED = 10;
 
   @Override
@@ -40,6 +47,12 @@ public final class ReportsCommand implements SubCommand {
     return "Lists pending player reports";
   }
 
+  /**
+   * Lists the queue and how many open reports were left out.
+   *
+   * <p>The header carries the true open count even in {@code all} mode, since that
+   * is the number staff are trying to work down.
+   */
   @Override
   public void execute(@NotNull ModContext context, @NotNull CommandSender sender, @NotNull String[] args) {
     boolean all = args.length > 0 && args[0].equalsIgnoreCase("all");
@@ -69,6 +82,7 @@ public final class ReportsCommand implements SubCommand {
     }
   }
 
+  /** Offers the two filters. */
   @Override
   public @NotNull List<String> complete(@NotNull ModContext context, @NotNull CommandSender sender,
       @NotNull String[] args) {
