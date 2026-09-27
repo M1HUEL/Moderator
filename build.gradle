@@ -1,0 +1,58 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.itson'
+version = '1.0.0'
+description = 'Moderation toolkit plugin for Paper'
+
+repositories {
+    mavenCentral()
+    maven {
+        name = 'papermc'
+        url = 'https://repo.papermc.io/repository/maven-public/'
+    }
+}
+
+dependencies {
+    // Paper API: `provided` in Maven, `compileOnly` in Gradle.
+    compileOnly libs.paper.api
+
+    testImplementation libs.junit.jupiter
+    testImplementation libs.paper.api
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// Paper 26.1+ runs on Java 25. The toolchain is provisioned by the foojay resolver
+// declared in settings.gradle, so JDK 25 does not need to be installed locally.
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 25
+}
+
+tasks.named('processResources') {
+    // Injects the project ${version} into plugin.yml
+    def replacements = [version: project.version.toString()]
+    inputs.properties(replacements)
+    filesMatching('plugin.yml') {
+        expand(replacements)
+    }
+}
+
+tasks.named('jar') {
+    archiveBaseName = 'Moderator'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    testLogging {
+        events 'failed'
+        exceptionFormat 'full'
+    }
+}

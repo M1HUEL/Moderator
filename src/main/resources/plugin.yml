@@ -1,0 +1,23 @@
+name: Moderator
+version: '${version}'
+main: com.itson.moderator.ModeratorPlugin
+api-version: '26.2'
+description: Moderation toolkit for Paper
+author: M1HUEL
+
+commands:
+  mod:
+    description: Moderation toolkit
+    usage: /mod help
+    aliases: [moderation, moderate]
+    permission: moderator.use
+
+permissions:
+  moderator.use:
+    description: Grants access to the /mod command
+    default: op
+  moderator.*:
+    description: Grants every moderation permission
+    default: op
+    children:
+      moderator.use: true
