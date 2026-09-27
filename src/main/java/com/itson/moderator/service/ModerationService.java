@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
@@ -230,9 +231,7 @@ public final class ModerationService {
   /** Closes a report, returning empty when the id is unknown. */
   public Optional<Report> resolveReport(@NotNull String id, @NotNull ReportStatus status, @NotNull String handler,
       @Nullable String resolution) {
-    Optional<Report> existing = store.reports().stream()
-        .filter(report -> report.id().equalsIgnoreCase(id) || report.id().equalsIgnoreCase(Ids.shortId(id)))
-        .findFirst();
+    Optional<Report> existing = report(id);
 
     if (existing.isEmpty()) {
       return Optional.empty();
@@ -245,10 +244,34 @@ public final class ModerationService {
     return Optional.of(closed);
   }
 
+  /**
+   * Finds a report by id, accepting any unambiguous prefix.
+   *
+   * <p>Ids are shown in chat shortened, so a moderator reading one out of the
+   * queue types the first few characters rather than the whole thing. An exact
+   * match always wins over a prefix, so a longer id can never be shadowed by a
+   * shorter one that happens to start the same way.
+   */
   public Optional<Report> report(@NotNull String id) {
-    return store.reports().stream()
-        .filter(report -> report.id().equalsIgnoreCase(id) || report.id().equalsIgnoreCase(Ids.shortId(id)))
-        .findFirst();
+    String needle = id.trim().toLowerCase(Locale.ROOT);
+
+    if (needle.isEmpty()) {
+      return Optional.empty();
+    }
+
+    Optional<Report> exact = store.reports().stream().filter(report -> report.id().equalsIgnoreCase(id)).findFirst();
+
+    if (exact.isPresent()) {
+      return exact;
+    }
+
+    List<Report> prefixed = store.reports().stream()
+        .filter(report -> report.id().toLowerCase(Locale.ROOT).startsWith(needle))
+        .toList();
+
+    // A shared prefix is not a choice, so nothing is returned rather than a
+    // coin flip between two reports.
+    return prefixed.size() == 1 ? Optional.of(prefixed.get(0)) : Optional.empty();
   }
 
   public List<Report> reports(@NotNull ReportStatus status, int limit) {
