@@ -1,0 +1,202 @@
+# Moderator, a moderation toolkit for Paper.
+#
+# Everything under `messages` is MiniMessage. Player names, reasons and note
+# text are inserted literally, so text typed by players can never be read as
+# colour tags.
+#
+# `reasons` are the short ids staff type after a sanction, for example
+#   /mod ban Steve 7d cheating
+# A reason can be limited to certain punishment types with `applies`; leaving it
+# out makes the reason available everywhere.
+#
+# `auto-punish` chains sanctions: when a player collects `threshold` active
+# entries of any of `count-types`, `action` is applied automatically. The highest
+# matching threshold wins, so the list does not have to be ordered.
+
+settings:
+  # Announce sanctions to staff, or only to whoever typed the command.
+  broadcast-punishments: true
+  broadcast-reports: true
+  # Lift bans and IP bans automatically once they run out.
+  auto-unban-on-expiry: true
+  # Tell a player on login which sanctions are still running.
+  notify-on-login: true
+  # Refuse every command while muted, except the ones listed below. Useful when
+  # an authentication plugin needs to keep working.
+  muted-blocks-commands: true
+  muted-allowed-commands:
+    - login
+    - l
+    - register
+    - reg
+    - changepassword
+    - 2fa
+    - totp
+  # Refuse breaking, placing, using items and picking things up while frozen.
+  freeze-blocks-interactions: true
+  # How many entries /mod history prints before truncating.
+  history-limit: 20
+  # Seconds a member of staff has to wait between two actions. 0 disables the
+  # limit. Both /mod and /report check these.
+  cooldowns:
+    warn: 10
+    note: 5
+    mute: 5
+    ban: 5
+    kick: 0
+    report: 60
+
+# Shown when no reason was typed.
+fallback-reason: "No reason given"
+
+messages:
+  prefix: "<gradient:#ff5f6d:#ffc371><bold>Moderator</bold></gradient> <dark_gray>» <gray>"
+
+  no-permission: "<red>You do not have permission to do that."
+  players-only: "<red>That can only be run by a player."
+  usage: "<red>Usage: <white><usage>"
+  unknown-subcommand: "<red>Unknown tool <white><input></white>. Try <white>/mod help</white>."
+  name-required: "<red>Name a player, the console has no avatar."
+  cooldown: "<red>Wait <white><time></white> before doing that again."
+
+  target-not-found: "<red>No player called <white><input></white> has joined this server yet."
+  target-ambiguous: "<red><white><input></white> matches more than one player: <white><candidates></white>."
+  target-offline: "<red><white><player></white> is not online."
+
+  invalid-duration: "<red><white><value></white> is not a duration. Use <white>30m</white>, <white>2h30m</white>, <white>7d</white> or <white>perm</white>."
+  invalid-type: "<red><white><value></white> is not a sanction type."
+  invalid-status: "<red><white><value></white> is not a report status."
+  invalid-gamemode: "<red><white><value></white> is not a game mode."
+  invalid-section: "<red><white><value></white> is not an inventory section."
+
+  punish-staff: "<green><type> <white><player></white> <gray>(<reason>, <duration>) <dark_gray>by <white><staff>"
+  punish-broadcast: "<gray><staff> <type> <white><player></white> <dark_gray>(<reason>, <duration>)"
+  punish-replaced: "<yellow>Replaced the previous <type> of <white><player></white> <dark_gray>(<previous-reason>, <previous-duration>)"
+  punish-expired: "<gray>The <type> of <white><player></white> has run out <dark_gray>(<reason>)"
+  auto-punish: "<dark_purple>[auto] <type> <white><player></white> <dark_gray>(<reason>, <duration>)"
+  already-active: "<red><white><player></white> is already <type>."
+
+  revoke-staff: "<green>Lifted the <type> of <white><player></white> <dark_gray>(<reason>, <duration>) <dark_gray>by <white><staff>"
+  revoke-broadcast: "<gray><staff> lifted the <type> of <white><player></white> <dark_gray>(<reason>)"
+  nothing-active: "<red><white><player></white> is not <type>."
+
+  # Plain text, no MiniMessage: this is what the vanilla ban screen shows.
+  vanilla-reason: "Reason: <reason> | By: <staff> | Expires: <duration>"
+
+  punish.mute-screen: "<newline><red><bold>Muted<newline><newline><gray>Reason: <white><reason><newline><gray>Until: <white><duration><newline><gray>By: <white><staff><newline><newline><gray>You cannot chat or use commands."
+  punish.ban-screen: "<newline><red><bold>Banned<newline><newline><gray>Reason: <white><reason><newline><gray>Until: <white><duration><newline><gray>By: <white><staff><newline><newline><gray>You may appeal on our website."
+  punish.ipban-screen: "<newline><red><bold>IP banned<newline><newline><gray>Reason: <white><reason><newline><gray>Until: <white><duration><newline><gray>By: <white><staff>"
+  punish.kick-screen: "<newline><red><bold>Kicked<newline><newline><gray>Reason: <white><reason><newline><gray>By: <white><staff>"
+  punish.warn-screen: "<newline><yellow><bold>You have been warned<newline><newline><gray>Reason: <white><reason><newline><gray>By: <white><staff>"
+  punish.note-screen: ""
+
+  login-punishment: "<gray>You are still <type> <dark_gray>(<reason>, <duration> by <staff>)"
+
+  muted-chat: "<red>You are muted <dark_gray>(<duration> by <staff>, <reason>)"
+  muted-command: "<red>You are muted and cannot use commands."
+
+  history-header: "<gray>History of <white><player></white> <dark_gray>(showing <count> of <total>)"
+  history-entry: "<dark_gray>#<index> <gray><type> <white><reason> <dark_gray>by <gray><staff> <dark_gray>| <date> | <duration> | <state>"
+  history-empty: "<gray><white><player></white> has no recorded history."
+  history-truncated: "<dark_gray>... and <white><remaining></white> more. Raise <gray>settings.history-limit</gray> to see them."
+
+  profile-header: "<gray>Profile of <white><player></white><dark_gray> (<uuid>)"
+  profile-entry: "<dark_gray>• <gray><key>: <white><value>"
+  profile-note: "<dark_gray>• <gray>note <dark_gray>(<date> by <staff>): <white><reason>"
+
+  report-created: "<green>Thanks. Your report against <white><player></white> was filed as <white><id></white>."
+  report-self: "<red>You cannot report yourself."
+  report-broadcast: "<gray><reporter> reported <white><player></white> <dark_gray>(<reason>, <id>, <age> ago)"
+  report-handled: "<gray>Your report <white><id></white> was marked as <white><status></white>. Thanks for telling us."
+  reports-header: "<gray>Open reports: <white><open>"
+  reports-empty: "<gray>Nothing in the queue."
+  reports-truncated: "<dark_gray>... and <white><remaining></white> more. Use <gray>/mod reports all</gray>."
+  report-entry: "<dark_gray>#<index> <white><id></white> <gray><target> <dark_gray>by <gray><reporter> <dark_gray>| <reason> | <age> ago | <status>"
+  report-detail: "<gray>Report <white><id></white> <dark_gray>about <white><target><newline><dark_gray>  from: <gray><reporter><newline><dark_gray>  reason: <gray><reason><newline><dark_gray>  details: <gray><details><newline><dark_gray>  filed: <gray><date>"
+  report-not-found: "<red>No report with the id <white><id></white>."
+  report-resolved: "<green>Report <white><id></white> marked as <white><status></white> <dark_gray>by <white><staff>"
+  report-already-handled: "<red>Report <white><id></white> was already marked as <white><status></white>."
+
+  freeze-self: "<red>Use <white>/mod freeze <player> <reason> -self</white> to freeze yourself."
+  frozen-staff: "<green>Froze <white><player></white> <dark_gray>(<reason>)"
+  frozen-broadcast: "<gray><staff> froze <white><player></white> <dark_gray>(<reason>)"
+  frozen-screen: "<newline><red><bold>Frozen<newline><newline><gray>Reason: <white><reason><newline><gray>By: <white><staff><newline><newline><gray>Wait for a member of staff."
+  frozen-command: "<red>You are frozen and cannot use commands."
+  already-frozen: "<red><white><player></white> is already frozen."
+  unfrozen-staff: "<green>Released <white><player></white>"
+  unfrozen-broadcast: "<gray><staff> released <white><player></white>"
+  unfrozen-screen: "<newline><green><bold>Released<newline><newline><gray>You can move again. Thanks for your patience."
+  not-frozen: "<red><white><player></white> is not frozen."
+
+  healed: "<green>Healed <white><player></white>"
+  healed-self: "<green>Healed yourself."
+  healed-by: "<gray>A member of staff healed you."
+  fed: "<green>Fed <white><player></white>"
+  fed-self: "<green>Fed yourself."
+  fed-by: "<gray>A member of staff fed you."
+  cleared: "<green>Cleared the <white><section></white> of <white><player></white>"
+  cleared-self: "<green>Cleared your own <white><section></white>"
+  cleared-by: "<gray>A member of staff cleared your <white><section></white>."
+  gamemode-set: "<green>Set <white><player></white> to <white><mode></white>"
+  gamemode-self: "<green>Set your game mode to <white><mode></white>"
+  gamemode-by: "<gray>A member of staff set your game mode to <white><mode></white>."
+  killed: "<green>Killed <white><player></white>"
+  killed-self: "<green>Killed yourself."
+  tp-there: "<green>Teleported to <white><player></white>"
+  tp-here: "<green>Brought <white><player></white> to you"
+  tp-to: "<gray>A member of staff teleported you to them."
+  tp-self: "<red>You are already there."
+  tp-too-far: "<red><white><player></white> is more than 32 blocks away."
+  invsee-opened: "<green>Opened the inventory of <white><player></white>"
+  invsee-by: "<gray>A member of staff is looking at your inventory."
+  invsee-saved: "<green>Changes to the inventory of <white><player></white> were saved."
+
+  reloaded: "<green>Configuration reloaded."
+  reloaded-with-problems: "<yellow>Configuration reloaded with <white><count></white> problem(s)."
+
+  help-header: "<gray>Moderation tools you can use <dark_gray>(<count>)"
+  help-entry: "<dark_gray>• <white><usage> <dark_gray>- <gray><description>"
+
+# Short ids typed after a sanction. `applies` limits the types the reason may be
+# used for; omit it to allow every type.
+reasons:
+  spam:
+    label: "Spam"
+  abuse:
+    label: "Abusive behaviour"
+  harassment:
+    label: "Harassment"
+  advertising:
+    label: "Advertising"
+  griefing:
+    label: "Griefing"
+  stealing:
+    label: "Theft"
+  exploiting:
+    label: "Exploiting a bug"
+  hacking:
+    label: "Using an unfair client"
+  chat:
+    label: "Inappropriate chat"
+  afk:
+    label: "Going AFK"
+    applies: [ban, banip]
+  ban_appeal:
+    label: "Ban evasion"
+    applies: [ban, banip, mute]
+
+# Applied automatically once a player collects enough active entries.
+# `count-types` decides what adds up, `action` is what gets applied, and
+# `permission` guards the rule for staff without the full trust.
+auto-punish:
+  - threshold: 3
+    count-types: [warn]
+    action: mute
+    duration: 30m
+    reason: "Repeated warnings"
+  - threshold: 5
+    count-types: [warn, mute]
+    action: ban
+    duration: 7d
+    reason: "Repeated warnings and mutes"
+    permission: "moderator.admin"

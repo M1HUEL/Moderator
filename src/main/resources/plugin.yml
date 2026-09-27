@@ -11,13 +11,109 @@ commands:
     usage: /mod help
     aliases: [moderation, moderate]
     permission: moderator.use
+  report:
+    description: Reports a player to the staff team
+    usage: /report <player> <reason> [details]
+    aliases: [rep]
+    permission: moderator.report
 
 permissions:
   moderator.use:
     description: Grants access to the /mod command
     default: op
+  moderator.notify:
+    description: Receives broadcasts about sanctions and reports
+    default: op
+  moderator.admin:
+    description: Reloads the configuration
+    default: op
+  moderator.mute:
+    description: Mutes a player
+    default: op
+  moderator.unmute:
+    description: Lifts a mute
+    default: op
+  moderator.ban:
+    description: Bans a player
+    default: op
+  moderator.unban:
+    description: Lifts a ban
+    default: op
+  moderator.banip:
+    description: Bans and unbans an address
+    default: op
+  moderator.kick:
+    description: Kicks a player
+    default: op
+  moderator.warn:
+    description: Warns a player
+    default: op
+  moderator.note:
+    description: Leaves a staff note
+    default: op
+  moderator.history:
+    description: Reads sanctions, notes and profiles
+    default: op
+  moderator.reports:
+    description: Reads and resolves player reports
+    default: op
+  moderator.report:
+    description: Files a report as a player
+    default: true
+  moderator.freeze:
+    description: Freezes a player
+    default: op
+  moderator.unfreeze:
+    description: Releases a frozen player
+    default: op
+  moderator.tp:
+    description: Teleports players
+    default: op
+  moderator.heal:
+    description: Heals a player
+    default: op
+  moderator.feed:
+    description: Feeds a player
+    default: op
+  moderator.clear:
+    description: Clears an inventory
+    default: op
+  moderator.gamemode:
+    description: Changes a game mode
+    default: op
+  moderator.kill:
+    description: Kills a player
+    default: op
+  moderator.invsee:
+    description: Opens another player inventory
+    default: op
   moderator.*:
-    description: Grants every moderation permission
+    description: Every staff permission
     default: op
     children:
       moderator.use: true
+      moderator.notify: true
+      moderator.mute: true
+      moderator.unmute: true
+      moderator.ban: true
+      moderator.unban: true
+      moderator.banip: true
+      moderator.kick: true
+      moderator.warn: true
+      moderator.note: true
+      moderator.history: true
+      moderator.reports: true
+      moderator.freeze: true
+      moderator.unfreeze: true
+      moderator.tp: true
+      moderator.heal: true
+      moderator.feed: true
+      moderator.clear: true
+      moderator.gamemode: true
+      moderator.kill: true
+      moderator.invsee: true
+  moderator.player:
+    description: Everything a player needs, without staff tools
+    default: true
+    children:
+      moderator.report: true
