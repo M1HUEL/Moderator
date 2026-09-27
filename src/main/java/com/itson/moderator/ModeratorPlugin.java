@@ -85,7 +85,7 @@ public final class ModeratorPlugin extends JavaPlugin {
     store.load();
 
     mutes = new MuteRegistry();
-    freeze = new FreezeManager();
+    freeze = new FreezeManager(store);
     cooldowns = new CooldownService();
     cooldowns.bind(config);
     invsee = new InvseeService();
@@ -103,7 +103,8 @@ public final class ModeratorPlugin extends JavaPlugin {
     startMaintenance();
 
     getLogger().info("Moderator enabled on " + getServer().getMinecraftVersion() + " with " + mutes.size()
-        + " active mute(s) and " + store.punishments().size() + " stored sanction(s).");
+        + " active mute(s), " + store.punishments().size() + " stored sanction(s) and " + freeze.size()
+        + " restored freeze(s).");
   }
 
   @Override
@@ -117,10 +118,6 @@ public final class ModeratorPlugin extends JavaPlugin {
 
     if (store != null) {
       store.save();
-    }
-
-    if (freeze != null) {
-      freeze.reset();
     }
 
     if (mutes != null) {
@@ -195,19 +192,18 @@ public final class ModeratorPlugin extends JavaPlugin {
         "player", punishment.targetName(), "reason", punishment.reason());
   }
 
-  /** Hands a frozen player their avatar back before the plugin goes away. */
+  /**
+   * Hands a frozen player their avatar back before the plugin goes away.
+   *
+   * <p>The freeze itself stays on file. Shutdown is not the same as a release, so
+   * the records survive and the next start puts these players back under control.
+   */
   private void releaseEveryone() {
     if (freeze == null) {
       return;
     }
 
-    for (var id : freeze.frozenIds()) {
-      var player = getServer().getPlayer(id);
-
-      if (player != null) {
-        freeze.unfreeze(player);
-      }
-    }
+    freeze.releaseEveryone();
   }
 
   /** Every tool, in the order they show up in {@code /mod help}. */

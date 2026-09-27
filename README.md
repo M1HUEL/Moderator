@@ -120,9 +120,21 @@ A frozen player cannot move, run commands, break or place blocks, use buckets,
 drop items or pick them up. Looking around still works, because a frozen player
 who cannot turn their head looks like a bug rather than a restraint.
 
-The `-self` flag freezes whoever runs the command. The avatar is handed back on
-disconnect, so a crash never costs a player their items, while the freeze itself
-survives to the next join.
+The `-self` flag freezes whoever runs the command.
+
+A freeze is stored in `data.yml` together with the reason, the staff member who
+issued it and a snapshot of the player's inventory, game mode, position and vitals.
+The snapshot is written to disk *before* the avatar is touched, which is what makes
+a crash survivable: Minecraft saves the emptied inventory with the rest of the
+world, so without a copy on disk a crash while frozen would destroy the items
+permanently. It is never overwritten, so a player who reconnects and is frozen
+again still gets their original stuff back.
+
+The avatar is handed back on disconnect, and the freeze itself survives to the next
+join, along with a fresh screen saying who froze the player and why.
+`/mod unfreeze` also works on a player who is offline: the release is recorded and
+completed on their next join, because the inventory cannot be restored to somebody
+who is not there.
 
 ### Session tools
 
@@ -225,7 +237,7 @@ permanent, and is what you get when no duration is typed.
 
 ## Persistence
 
-`data.yml` is created in the plugin folder. It has three sections:
+`data.yml` is created in the plugin folder. It has four sections:
 
 ```yaml
 players:
@@ -234,6 +246,24 @@ players:
     last-ip: 1.2.3.4
     first-seen: 1767225600000
     last-seen: 1767312000000
+freezes:
+  <uuid>:
+    name: Steve
+    reason: Griefing
+    staff-name: Admin
+    created: 1767225600000
+    released: false
+    game-mode: SURVIVAL
+    health: 17.5
+    world: world
+    x: 128.5
+    y: 64.0
+    z: -256.0
+    yaw: 90.0
+    pitch: 12.0
+    contents: '<base64 of the inventory>'
+    armor: '<base64 of the armour>'
+    off-hand: '<base64 of the off hand>'
 punishments:
   - id: ...
     type: mute
@@ -244,12 +274,19 @@ reports:
     ...
 ```
 
-Timestamps are epoch milliseconds. The file belongs to the plugin and is not
-meant to be edited by hand, but it is fine to version it or back it up alongside
-the server.
+Timestamps are epoch milliseconds. The `freezes` section is keyed by UUID and holds
+at most one entry per player; `released: true` means staff lifted the freeze while
+the player was offline and the inventory still has to be handed back on their next
+join. The three item fields are Paper's binary item encoding, stored as base64 so
+the plugin never has to know an item's format.
+
+The file belongs to the plugin and is not meant to be edited by hand, but it is
+fine to version it or back it up alongside the server.
 
 Saving happens when a sanction is applied, when a report is closed, when a player
-quits, periodically in the background, and once more on shutdown. Entries that
+quits, when a freeze starts or ends, periodically in the background, and once more
+on shutdown. A freeze is flushed the moment it is taken rather than waiting for
+the periodic save, because the inventory it protects is emptied right after. Entries that
 cannot be read are skipped with a console warning instead of failing the whole
 load.
 
@@ -259,7 +296,8 @@ load.
 command/    Subcommands, the /mod dispatcher, and ModContext with what they need
 config/     ModerationConfig and Messages, defensive config loading
 listener/   Mute, Session, Freeze, Invsee
-model/      Punishment, Report, PlayerRecord, Target, PunishmentType, ReportStatus
+model/      Punishment, Report, FreezeRecord, PlayerRecord, Target, PunishmentType,
+            ReportStatus
 service/    ModerationService (core), TargetResolver, FreezeManager, MuteRegistry,
             CooldownService, PlayerRegistry, InvseeService
 storage/    ModerationStore (contract) and YamlStore

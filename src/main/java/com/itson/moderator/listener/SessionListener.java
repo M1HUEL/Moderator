@@ -1,5 +1,6 @@
 package com.itson.moderator.listener;
 
+import com.itson.moderator.command.Feedback;
 import com.itson.moderator.command.ModContext;
 import com.itson.moderator.model.Punishment;
 import com.itson.moderator.model.PunishmentType;
@@ -39,7 +40,13 @@ public final class SessionListener implements Listener {
     Player player = event.getPlayer();
 
     context.moderation().registerPlayer(player);
-    context.freeze().reapplyOnJoin(player);
+    context.freeze().reapplyOnJoin(player).ifPresent(freeze -> {
+      if (freeze.released()) {
+        Feedback.send(context, player, "unfrozen-screen", "staff", freeze.staffName());
+      } else {
+        Feedback.send(context, player, "frozen-screen", "reason", freeze.reason(), "staff", freeze.staffName());
+      }
+    });
 
     if (!context.config().notifyOnLogin()) {
       return;

@@ -1,5 +1,6 @@
 package com.itson.moderator.storage;
 
+import com.itson.moderator.model.FreezeRecord;
 import com.itson.moderator.model.PlayerRecord;
 import com.itson.moderator.model.Punishment;
 import com.itson.moderator.model.Report;
@@ -70,4 +71,22 @@ public interface ModerationStore {
 
   /** Every report ever filed, in insertion order. */
   @NotNull List<Report> reports();
+
+  /**
+   * The freeze on a player, if there is one.
+   *
+   * <p>Kept alongside the history because a freeze has to be restored from disk:
+   * the plugin has emptied the player's inventory, so the snapshot that gives it
+   * back may not be held in memory only.
+   */
+  Optional<FreezeRecord> freeze(@NotNull UUID id);
+
+  /** Every current freeze. */
+  @NotNull List<FreezeRecord> freezes();
+
+  /** Stores a freeze, replacing any previous one for the same player. */
+  void freeze(@NotNull FreezeRecord freeze);
+
+  /** Forgets a freeze, called when staff release the player. */
+  void unfreeze(@NotNull UUID id);
 }

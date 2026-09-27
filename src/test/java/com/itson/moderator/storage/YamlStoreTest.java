@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.itson.moderator.model.FreezeRecord;
 import com.itson.moderator.model.PlayerRecord;
 import com.itson.moderator.model.Punishment;
 import com.itson.moderator.model.PunishmentType;
@@ -266,5 +267,100 @@ class YamlStoreTest {
 
     assertEquals(List.of("Steve"), fresh.players().stream().map(PlayerRecord::name).toList());
     assertTrue(fresh.punishments().isEmpty());
+  }
+
+  /**
+   * A freeze owns the only copy of a player's inventory, so it has to come back
+   * out of the file exactly as it went in.
+   */
+  @Test
+  @DisplayName("a freeze round trips through the file, snapshot included")
+  void freezeRoundTrips() {
+    store.freeze(freeze("SURVIVAL", 17.5d, "world", 1.5d, 64.0d, -2.5d, 90f, 45f));
+
+    store.save();
+
+    YamlStore reloaded = newStore();
+
+    reloaded.load();
+
+    FreezeRecord found = reloaded.freeze(TARGET).orElseThrow();
+
+    assertEquals("Steve", found.name());
+    assertEquals("Griefing", found.reason());
+    assertEquals("Admin", found.staffName());
+    assertEquals(CREATED, found.createdAt());
+    assertEquals("SURVIVAL", found.gameMode());
+    assertTrue(found.allowFlight());
+    assertTrue(found.flying());
+    assertEquals(17.5d, found.health());
+    assertEquals(11, found.foodLevel());
+    assertEquals(3.5f, found.saturation());
+    assertEquals(40, found.fireTicks());
+    assertEquals("world", found.world());
+    assertEquals(1.5d, found.x());
+    assertEquals(64.0d, found.y());
+    assertEquals(-2.5d, found.z());
+    assertEquals(90f, found.yaw());
+    assertEquals(45f, found.pitch());
+    assertEquals("Y29tbGVudHM=", found.contents());
+    assertEquals("Y29tb3Vy", found.armor());
+    assertEquals("Y29mZmhhbmQ=", found.offHand());
+    assertFalse(found.released());
+  }
+
+  @Test
+  @DisplayName("a freeze released while the player was away stays on file until it is handed back")
+  void releasedFreezeIsKept() {
+    store.freeze(freeze("SURVIVAL", 20.0d, "world", 0.0d, 64.0d, 0.0d, 0f, 0f).markedReleased());
+
+    store.save();
+
+    YamlStore reloaded = newStore();
+
+    reloaded.load();
+
+    assertTrue(reloaded.freeze(TARGET).orElseThrow().released());
+    assertEquals(1, reloaded.freezes().size());
+  }
+
+  @Test
+  @DisplayName("a freeze with a missing snapshot is dropped rather than loaded")
+  void incompleteFreezeIsSkipped() throws IOException {
+    Files.writeString(file, """
+        freezes:
+          11111111-1111-1111-1111-111111111111:
+            name: Steve
+            reason: Griefing
+            staff-name: Admin
+            created: 1767261600000
+            game-mode: SURVIVAL
+        """);
+
+    YamlStore fresh = newStore();
+
+    fresh.load();
+
+    assertTrue(fresh.freezes().isEmpty());
+  }
+
+  @Test
+  @DisplayName("a freeze with no world keeps the player where they are")
+  void freezeWithoutWorldRoundTrips() {
+    store.freeze(freeze("CREATIVE", 20.0d, null, 0.0d, 0.0d, 0.0d, 0f, 0f));
+
+    store.save();
+
+    YamlStore reloaded = newStore();
+
+    reloaded.load();
+
+    assertNull(reloaded.freeze(TARGET).orElseThrow().world());
+  }
+
+  private static FreezeRecord freeze(String gameMode, double health, String world, double x, double y, double z,
+      float yaw, float pitch) {
+    return new FreezeRecord(TARGET, "Steve", "Griefing", "Admin", CREATED, false, gameMode, true, true, health, 11,
+        3.5f, 40, world, x, y, z, yaw, pitch, "Y29tbGVudHM=", "Y29tb3Vy", "Y29mZmhhbmQ=");
   }
 }

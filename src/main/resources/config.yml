@@ -127,6 +127,7 @@ messages:
   unfrozen-staff: "<green>Released <white><player></white>"
   unfrozen-broadcast: "<gray><staff> released <white><player></white>"
   unfrozen-screen: "<newline><green><bold>Released<newline><newline><gray>You can move again. Thanks for your patience."
+  unfrozen-offline: "<green>Released <white><player></white><gray>, they will get their stuff back on their next join"
   not-frozen: "<red><white><player></white> is not frozen."
 
   healed: "<green>Healed <white><player></white>"

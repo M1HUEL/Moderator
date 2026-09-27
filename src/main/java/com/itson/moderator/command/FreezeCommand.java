@@ -2,6 +2,7 @@ package com.itson.moderator.command;
 
 import java.util.List;
 import java.util.Optional;
+import com.itson.moderator.model.Target;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -77,33 +78,27 @@ public final class FreezeCommand implements SubCommand {
       return;
     }
 
-    if (!resolved.get().online()) {
-      Feedback.send(context, sender, "target-offline", "player", resolved.get().name());
-
-      return;
-    }
-
     Player target = org.bukkit.Bukkit.getPlayer(resolved.get().id());
 
-    if (target == null) {
-      Feedback.send(context, sender, "target-offline", "player", resolved.get().name());
-
-      return;
-    }
-
-    if (sender.equals(target) && freeze && !explicit[0]) {
-      Feedback.send(context, sender, "freeze-self", "flag", SELF_FLAG);
-
-      return;
-    }
-
     if (freeze) {
+      if (target == null) {
+        Feedback.send(context, sender, "target-offline", "player", resolved.get().name());
+
+        return;
+      }
+
+      if (sender.equals(target) && !explicit[0]) {
+        Feedback.send(context, sender, "freeze-self", "flag", SELF_FLAG);
+
+        return;
+      }
+
       apply(context, sender, target, Args.join(cleaned, 1, " "));
 
       return;
     }
 
-    release(context, sender, target);
+    release(context, sender, resolved.get(), target);
   }
 
   @Override
@@ -113,13 +108,13 @@ public final class FreezeCommand implements SubCommand {
   }
 
   private void apply(ModContext context, CommandSender sender, Player target, String reason) {
-    if (!context.freeze().freeze(target)) {
+    String text = reason.isBlank() ? context.messages().text("fallback-reason") : reason;
+
+    if (!context.freeze().freeze(target, text, sender.getName())) {
       Feedback.send(context, sender, "already-frozen", "player", target.getName());
 
       return;
     }
-
-    String text = reason.isBlank() ? context.messages().text("fallback-reason") : reason;
 
     Feedback.send(context, target, "frozen-screen", "reason", text, "staff", sender.getName());
     Feedback.send(context, sender, "frozen-staff", "player", target.getName(), "reason", text);
@@ -130,18 +125,34 @@ public final class FreezeCommand implements SubCommand {
     }
   }
 
-  private void release(ModContext context, CommandSender sender, Player target) {
-    if (!context.freeze().unfreeze(target)) {
-      Feedback.send(context, sender, "not-frozen", "player", target.getName());
+  /**
+   * Releases a frozen player, online or not.
+   *
+   * <p>An offline release cannot hand the avatar back right away, so it is
+   * recorded and completed on the player's next join. Without that, lifting the
+   * freeze of somebody who was frozen across a crash would be the one way to
+   * lose their inventory for good.
+   */
+  private void release(ModContext context, CommandSender sender, Target target, Player online) {
+    boolean lifted = online == null ? context.freeze().release(target.id()) : context.freeze().unfreeze(online);
+
+    if (!lifted) {
+      Feedback.send(context, sender, "not-frozen", "player", target.name());
 
       return;
     }
 
-    Feedback.send(context, target, "unfrozen-screen", "staff", sender.getName());
-    Feedback.send(context, sender, "unfrozen-staff", "player", target.getName());
+    if (online == null) {
+      Feedback.send(context, sender, "unfrozen-offline", "player", target.name());
+
+      return;
+    }
+
+    Feedback.send(context, online, "unfrozen-screen", "staff", sender.getName());
+    Feedback.send(context, sender, "unfrozen-staff", "player", target.name());
 
     if (context.config().broadcastPunishments()) {
-      Feedback.broadcast(context, "unfrozen-broadcast", "player", target.getName(), "staff", sender.getName());
+      Feedback.broadcast(context, "unfrozen-broadcast", "player", target.name(), "staff", sender.getName());
     }
   }
 }

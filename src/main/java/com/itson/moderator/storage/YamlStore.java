@@ -1,5 +1,6 @@
 package com.itson.moderator.storage;
 
+import com.itson.moderator.model.FreezeRecord;
 import com.itson.moderator.model.PlayerRecord;
 import com.itson.moderator.model.Punishment;
 import com.itson.moderator.model.PunishmentType;
@@ -59,6 +60,15 @@ public final class YamlStore implements ModerationStore {
   /** Root key of the report list, with the same flat layout as the punishments. */
   private static final String REPORTS = "reports";
 
+  /**
+   * Root key of the freeze section, indexed by UUID like the players.
+   *
+   * <p>A section rather than a list because there is at most one freeze per player,
+   * and because a player who is frozen is usually not online, so the file is the
+   * only place staff can look to find out who is being held.
+   */
+  private static final String FREEZES = "freezes";
+
   private final File file;
 
   private final Logger logger;
@@ -72,6 +82,14 @@ public final class YamlStore implements ModerationStore {
   private final List<Punishment> punishments = new ArrayList<>();
 
   private final List<Report> reports = new ArrayList<>();
+
+  /**
+   * Current freezes by UUID, the primary key of the freeze section.
+   *
+   * <p>Kept as a map rather than a set because the value carries the reason, the
+   * staff member, and the snapshot the player's avatar has to be restored from.
+   */
+  private final Map<UUID, FreezeRecord> freezes = new HashMap<>();
 
   /**
    * Whether anything changed since the last successful flush.
@@ -98,6 +116,7 @@ public final class YamlStore implements ModerationStore {
     playersByName.clear();
     punishments.clear();
     reports.clear();
+    freezes.clear();
     dirty = false;
 
     if (!file.exists()) {
@@ -109,6 +128,7 @@ public final class YamlStore implements ModerationStore {
     readPlayers(data.getConfigurationSection(PLAYERS));
     readPunishments(data);
     readReports(data);
+    readFreezes(data.getConfigurationSection(FREEZES));
   }
 
   /**
@@ -128,6 +148,7 @@ public final class YamlStore implements ModerationStore {
     YamlConfiguration data = new YamlConfiguration();
 
     writePlayers(data.createSection(PLAYERS));
+    writeFreezes(data.createSection(FREEZES));
     data.set(PUNISHMENTS, punishmentEntries());
     data.set(REPORTS, reportEntries());
 
@@ -236,6 +257,36 @@ public final class YamlStore implements ModerationStore {
     return List.copyOf(reports);
   }
 
+  @Override
+  public Optional<FreezeRecord> freeze(@NotNull UUID id) {
+    return Optional.ofNullable(freezes.get(id));
+  }
+
+  @Override
+  public @NotNull List<FreezeRecord> freezes() {
+    return List.copyOf(freezes.values());
+  }
+
+  /**
+   * Stores a freeze, replacing any previous one for the same player.
+   *
+   * <p>Replacing rather than refusing is deliberate: staff who freeze an already
+   * frozen player are correcting the reason, and the old snapshot has already been
+   * taken, so the new record must win.
+   */
+  @Override
+  public void freeze(@NotNull FreezeRecord freeze) {
+    freezes.put(freeze.id(), freeze);
+    dirty = true;
+  }
+
+  @Override
+  public void unfreeze(@NotNull UUID id) {
+    if (freezes.remove(id) != null) {
+      dirty = true;
+    }
+  }
+
   /**
    * Reads the player section, which is keyed by UUID.
    *
@@ -329,6 +380,76 @@ public final class YamlStore implements ModerationStore {
     }
   }
 
+  /**
+   * Reads the freeze section, which is keyed by UUID.
+   *
+   * <p>A freeze that cannot be restored is dropped rather than loaded, because
+   * keeping it would freeze a player on their next join with an inventory the
+   * plugin no longer holds and would empty on the way in.
+   */
+  private void readFreezes(@Nullable ConfigurationSection section) {
+    if (section == null) {
+      return;
+    }
+
+    for (String key : section.getKeys(false)) {
+      Optional<UUID> id = Ids.parseUuid(key);
+
+      if (id.isEmpty()) {
+        logger.warning("data.yml: freezes." + key + " is not a valid UUID, skipping it");
+
+        continue;
+      }
+
+      ConfigurationSection entry = section.getConfigurationSection(key);
+
+      if (entry == null) {
+        continue;
+      }
+
+      FreezeRecord freeze = readFreeze(id.get(), entry);
+
+      if (freeze != null) {
+        freezes.put(id.get(), freeze);
+      }
+    }
+  }
+
+  /**
+   * Rebuilds one freeze from a section.
+   *
+   * @return the freeze, or null when it is incomplete or fails validation
+   */
+  private @Nullable FreezeRecord readFreeze(@NotNull UUID id, @NotNull ConfigurationSection entry) {
+    String name = entry.getString("name");
+    String reason = entry.getString("reason");
+    String staffName = entry.getString("staff-name");
+    String gameMode = entry.getString("game-mode");
+    Instant created = instant(entry.getLong("created"));
+    String contents = entry.getString("contents");
+    String armor = entry.getString("armor");
+    String offHand = entry.getString("off-hand");
+
+    if (name == null || reason == null || staffName == null || gameMode == null || created == null || contents == null
+        || armor == null || offHand == null) {
+      logger.warning("data.yml: freezes." + id + " is incomplete, skipping it");
+
+      return null;
+    }
+
+    try {
+      return new FreezeRecord(id, name, reason, staffName, created, entry.getBoolean("released"), gameMode,
+          entry.getBoolean("allow-flight"), entry.getBoolean("flying"), entry.getDouble("health"),
+          entry.getInt("food-level"), (float) entry.getDouble("saturation"), entry.getInt("fire-ticks"),
+          entry.getString("world"), entry.getDouble("x"), entry.getDouble("y"), entry.getDouble("z"),
+          (float) entry.getDouble("yaw"), (float) entry.getDouble("pitch"), contents, armor, offHand);
+    } catch (IllegalArgumentException exception) {
+      logger.warning("data.yml: freezes." + id + " is invalid (" + exception.getMessage() + "), skipping it");
+
+      return null;
+    }
+  }
+
   private void readReports(@NotNull YamlConfiguration data) {
     for (Map<?, ?> raw : data.getMapList(REPORTS)) {
       Report report = readReport(raw);
@@ -390,6 +511,49 @@ public final class YamlStore implements ModerationStore {
       entry.set("last-ip", record.lastIp());
       entry.set("first-seen", millis(record.firstSeen()));
       entry.set("last-seen", millis(record.lastSeen()));
+    }
+  }
+
+  /**
+   * Writes the freeze section, sorted by UUID.
+   *
+   * <p>Sorted for the same reason the players are: the snapshot of a frozen
+   * player is large, and an unsorted file would make every flush rewrite the
+   * whole section into a different order.
+   */
+  private void writeFreezes(ConfigurationSection section) {
+    Map<UUID, FreezeRecord> sorted = new TreeMap<>(Comparator.comparing(UUID::toString));
+
+    sorted.putAll(freezes);
+
+    for (FreezeRecord freeze : sorted.values()) {
+      ConfigurationSection entry = section.createSection(freeze.id().toString());
+
+      entry.set("name", freeze.name());
+      entry.set("reason", freeze.reason());
+      entry.set("staff-name", freeze.staffName());
+      entry.set("created", millis(freeze.createdAt()));
+      entry.set("released", freeze.released());
+      entry.set("game-mode", freeze.gameMode());
+      entry.set("allow-flight", freeze.allowFlight());
+      entry.set("flying", freeze.flying());
+      entry.set("health", freeze.health());
+      entry.set("food-level", freeze.foodLevel());
+      entry.set("saturation", freeze.saturation());
+      entry.set("fire-ticks", freeze.fireTicks());
+
+      if (freeze.world() != null) {
+        entry.set("world", freeze.world());
+        entry.set("x", freeze.x());
+        entry.set("y", freeze.y());
+        entry.set("z", freeze.z());
+        entry.set("yaw", freeze.yaw());
+        entry.set("pitch", freeze.pitch());
+      }
+
+      entry.set("contents", freeze.contents());
+      entry.set("armor", freeze.armor());
+      entry.set("off-hand", freeze.offHand());
     }
   }
 
