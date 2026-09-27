@@ -75,13 +75,6 @@ public final class TeleportCommand extends PlayerToolCommand {
       return;
     }
 
-    if (args.length == 0) {
-      actor.teleport(target.getLocation());
-      Feedback.send(context, sender, "tp-there", "player", target.getName());
-
-      return;
-    }
-
     if (!withinReach(actor, target, MAX_REACH)) {
       Feedback.send(context, sender, "tp-too-far", "player", target.getName());
 

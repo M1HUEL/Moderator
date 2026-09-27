@@ -142,7 +142,6 @@ messages:
   gamemode-by: "<gray>A member of staff set your game mode to <white><mode></white>."
   killed: "<green>Killed <white><player></white>"
   killed-self: "<green>Killed yourself."
-  tp-there: "<green>Teleported to <white><player></white>"
   tp-here: "<green>Brought <white><player></white> to you"
   tp-to: "<gray>A member of staff teleported you to them."
   tp-self: "<red>You are already there."
