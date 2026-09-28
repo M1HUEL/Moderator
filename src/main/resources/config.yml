@@ -37,6 +37,11 @@ settings:
   freeze-blocks-interactions: true
   # How many entries /mod history prints before truncating.
   history-limit: 20
+  # Days to keep sanctions after they are over, 0 keeps them forever. Only
+  # finished sanctions are ever removed: anything still in force stays, and so
+  # does every note, because those are the records an appeal is settled with.
+  # Pruning runs once on enable and logs how much it removed.
+  retention-days: 0
   # Seconds a member of staff has to wait between two actions. 0 disables the
   # limit. Both /mod and /report check these.
   cooldowns:

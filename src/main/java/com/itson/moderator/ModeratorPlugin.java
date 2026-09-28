@@ -37,6 +37,8 @@ import com.itson.moderator.service.TargetResolver;
 import com.itson.moderator.storage.YamlStore;
 import java.io.File;
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import org.bukkit.command.PluginCommand;
@@ -83,6 +85,7 @@ public final class ModeratorPlugin extends JavaPlugin {
 
     store = new YamlStore(new File(getDataFolder(), "data.yml"), getLogger());
     store.load();
+    pruneHistory();
 
     mutes = new MuteRegistry();
     freeze = new FreezeManager(store);
@@ -181,6 +184,25 @@ public final class ModeratorPlugin extends JavaPlugin {
     }, EXPIRY_INTERVAL_TICKS, EXPIRY_INTERVAL_TICKS);
 
     getServer().getScheduler().runTaskTimer(this, store::save, FLUSH_INTERVAL_TICKS, FLUSH_INTERVAL_TICKS);
+  }
+
+  /**
+   * Forgets finished sanctions the owner asked not to keep, once, on enable.
+   *
+   * <p>Disabled by default, because deleting a moderation history is a decision
+   * about compliance, not about the server's comfort. When it is on, the count is
+   * logged: a silent deletion of somebody's ban record would be indefensible.
+   */
+  private void pruneHistory() {
+    if (config.retentionDays() <= 0) {
+      return;
+    }
+
+    int dropped = store.pruneFinished(Instant.now().minus(Duration.ofDays(config.retentionDays())));
+
+    if (dropped > 0) {
+      getLogger().info("Pruned " + dropped + " finished sanction(s) older than " + config.retentionDays() + " days.");
+    }
   }
 
   private void announceExpiry(Punishment punishment) {

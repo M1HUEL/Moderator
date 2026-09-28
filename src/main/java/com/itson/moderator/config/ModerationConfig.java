@@ -55,6 +55,16 @@ public final class ModerationConfig {
   private int historyLimit = 20;
 
   /**
+   * Days of finished sanctions to keep, or zero to keep all of them.
+   *
+   * <p>Default is zero, so nothing is deleted unless an owner asks for it. A
+   * moderation history is the record a ban appeal, an abuse report or a staff
+   * mistake is settled with, and quietly discarding it is not a decision a plugin
+   * should make on its own.
+   */
+  private int retentionDays;
+
+  /**
    * Rereads config.yml and replaces the whole snapshot at once.
    *
    * <p>Rebuilding instead of mutating is what makes {@code /mod reload} safe: a
@@ -77,6 +87,7 @@ public final class ModerationConfig {
     notifyOnLogin = config.getBoolean("settings.notify-on-login", true);
 
     historyLimit = Math.max(1, config.getInt("settings.history-limit", 20));
+    retentionDays = Math.max(0, config.getInt("settings.retention-days", 0));
 
     messages = new Messages(readMessages(config));
     reasons = readReasons(config);
@@ -192,6 +203,15 @@ public final class ModerationConfig {
    */
   public int historyLimit() {
     return historyLimit;
+  }
+
+  /**
+   * How long finished sanctions are kept, or zero to keep them all.
+   *
+   * @see #retentionDays
+   */
+  public int retentionDays() {
+    return retentionDays;
   }
 
   /**

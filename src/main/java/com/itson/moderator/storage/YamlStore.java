@@ -9,6 +9,11 @@ import com.itson.moderator.model.ReportStatus;
 import com.itson.moderator.util.Ids;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -109,6 +114,16 @@ public final class YamlStore implements ModerationStore {
    */
   private volatile boolean dirty;
 
+  /**
+   * The exact text of the last successful write, or null if none has happened.
+   *
+   * <p>Held so a save that would not change a single byte can be skipped. Cleared
+   * by {@link #load()} rather than seeded from the file on disk, so the first save
+   * after a restart always normalises the file and a hand edit cannot leave the
+   * store believing it is already on disk.
+   */
+  private volatile String lastWritten;
+
   public YamlStore(@NotNull File file, @NotNull Logger logger) {
     this.file = file;
     this.logger = logger;
@@ -129,6 +144,7 @@ public final class YamlStore implements ModerationStore {
     reports.clear();
     freezes.clear();
     dirty = false;
+    lastWritten = null;
 
     if (!file.exists()) {
       return;
@@ -144,6 +160,14 @@ public final class YamlStore implements ModerationStore {
 
   /**
    * Writes the whole document when something changed.
+   *
+   * <p>The text is built in memory and only then swapped into place, so a crash
+   * part way through a write leaves the previous file intact instead of a truncated
+   * one. That matters more than usual here: the file can hold the only copy of a
+   * frozen player's inventory, and a half written YAML file is not parseable.
+   *
+   * <p>A write whose text is identical to the last one is skipped, so a save that
+   * is triggered by something that turned out not to be a change costs nothing.
    *
    * <p>A failure is logged and the store is left dirty, so the next scheduled
    * flush retries. Losing the in-memory history would be worse than a noisy
@@ -163,11 +187,45 @@ public final class YamlStore implements ModerationStore {
     data.set(PUNISHMENTS, punishmentEntries());
     data.set(REPORTS, reportEntries());
 
+    String document = data.saveToString();
+
+    if (document.equals(lastWritten)) {
+      dirty = false;
+
+      return;
+    }
+
     try {
-      data.save(file);
+      write(document);
+      lastWritten = document;
       dirty = false;
     } catch (IOException exception) {
       logger.log(Level.SEVERE, "Could not save " + file.getName() + ", changes are kept in memory only", exception);
+    }
+  }
+
+  /**
+   * Puts a finished document in place through a temporary file.
+   *
+   * <p>The move is atomic where the filesystem allows it, so readers see either
+   * the old file or the new one. Filesystems that cannot do it still get the
+   * replace, which is better than writing in place.
+   */
+  private void write(@NotNull String document) throws IOException {
+    Path parent = file.toPath().getParent();
+
+    if (parent != null) {
+      Files.createDirectories(parent);
+    }
+
+    Path temporary = file.toPath().resolveSibling(file.getName() + ".tmp");
+
+    Files.writeString(temporary, document, StandardCharsets.UTF_8);
+
+    try {
+      Files.move(temporary, file.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+    } catch (AtomicMoveNotSupportedException exception) {
+      Files.move(temporary, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
     }
   }
 
@@ -248,6 +306,54 @@ public final class YamlStore implements ModerationStore {
   @Override
   public @NotNull List<Punishment> punishments(@NotNull UUID target) {
     return List.copyOf(punishmentsByTarget.getOrDefault(target, List.of()));
+  }
+
+  /**
+   * Drops finished sanctions from before the cutoff, from both the list and the
+   * index.
+   *
+   * <p>The two are pruned together and the index is rebuilt from what is left
+   * rather than edited entry by entry, because an entry that survives in one and
+   * not the other is exactly the kind of drift that makes {@code /mod history}
+   * disagree with the mute cache.
+   */
+  @Override
+  public int pruneFinished(@NotNull Instant cutoff) {
+    int before = punishments.size();
+
+    punishments.removeIf(punishment -> finishedBefore(punishment, cutoff));
+
+    if (punishments.size() == before) {
+      return 0;
+    }
+
+    int dropped = before - punishments.size();
+
+    punishmentsByTarget.clear();
+
+    for (Punishment punishment : punishments) {
+      index(punishment);
+    }
+
+    dirty = true;
+
+    return dropped;
+  }
+
+  /**
+   * True when a sanction is over and old enough to forget.
+   *
+   * <p>A note is never eligible: it has no end and no effect, so it is only ever a
+   * record, and a record is the one thing worth keeping.
+   */
+  private static boolean finishedBefore(@NotNull Punishment punishment, @NotNull Instant cutoff) {
+    if (punishment.type() == PunishmentType.NOTE || punishment.active()) {
+      return false;
+    }
+
+    Instant closedAt = punishment.revokedAt() != null ? punishment.revokedAt() : punishment.expiresAt();
+
+    return closedAt != null && closedAt.isBefore(cutoff);
   }
 
   /**

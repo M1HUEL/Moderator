@@ -457,4 +457,109 @@ class YamlStoreTest {
   private static List<String> ids(List<Punishment> entries) {
     return entries.stream().map(Punishment::id).toList();
   }
+
+  /**
+   * Pruning has to be the narrowest thing that fixes the growth of the file:
+   * anything still in force, and every note, has to survive it.
+   */
+  @Test
+  @DisplayName("pruning only drops finished sanctions older than the cutoff")
+  void prunesOnlyOldFinishedEntries() {
+    Instant cutoff = Instant.parse("2026-01-01T00:00:00Z");
+    Instant longAgo = Instant.parse("2025-01-01T00:00:00Z");
+    Instant afterCutoff = Instant.parse("2026-06-01T00:00:00Z");
+
+    store.add(temporary("finished-old", PunishmentType.MUTE, longAgo).expire());
+    store.add(temporary("finished-recent", PunishmentType.MUTE, afterCutoff).expire());
+    store.add(temporary("still-running", PunishmentType.MUTE, Instant.parse("2030-01-01T00:00:00Z")));
+    store.add(permanent("note", PunishmentType.NOTE, "Careful with this one"));
+    store.add(permanent("live-ban", PunishmentType.BAN, "Cheating"));
+
+    assertEquals(1, store.pruneFinished(cutoff));
+
+    assertEquals(List.of("finished-recent", "still-running", "note", "live-ban"), ids(store.punishments()));
+    assertEquals(4, store.punishments(TARGET).size());
+  }
+
+  @Test
+  @DisplayName("pruning a revoked sanction uses the moment it was lifted, not when it started")
+  void pruneUsesRevocationTime() {
+    Instant old = Instant.parse("2025-01-01T00:00:00Z");
+    Instant afterCutoff = Instant.parse("2026-06-01T00:00:00Z");
+
+    store.add(permanent("old-ban", PunishmentType.BAN, "Cheating").revoke(old, "Admin", "Wrong player"));
+    store.add(permanent("new-ban", PunishmentType.BAN, "Cheating").revoke(afterCutoff, "Admin", "Wrong player"));
+
+    assertEquals(1, store.pruneFinished(Instant.parse("2026-01-01T00:00:00Z")));
+
+    assertEquals(List.of("new-ban"), ids(store.punishments()));
+  }
+
+  @Test
+  @DisplayName("a temporary sanction is judged by the moment it ended, not the one it was noticed")
+  void pruneUsesExpiryTime() {
+    Instant old = Instant.parse("2025-01-01T00:00:00Z");
+    Instant afterCutoff = Instant.parse("2026-06-01T00:00:00Z");
+
+    store.add(temporary("old-mute", PunishmentType.MUTE, old).expire());
+    store.add(temporary("new-mute", PunishmentType.MUTE, afterCutoff).expire());
+
+    assertEquals(1, store.pruneFinished(Instant.parse("2026-01-01T00:00:00Z")));
+
+    assertEquals(List.of("new-mute"), ids(store.punishments()));
+  }
+
+  @Test
+  @DisplayName("pruning leaves the store clean when nothing is old enough")
+  void pruneWithNothingToDoDoesNotDirty() {
+    store.add(permanent("note", PunishmentType.NOTE, "Still here"));
+    store.save();
+
+    assertEquals(0, store.pruneFinished(Instant.parse("2020-01-01T00:00:00Z")));
+    assertFalse(store.isDirty());
+  }
+
+  @Test
+  @DisplayName("a save triggered by unchanged data leaves the file exactly as it was")
+  void saveWithUnchangedDataLeavesTheFileAlone() throws IOException {
+    store.record(new PlayerRecord(TARGET, "Steve", "1.2.3.4", CREATED, CREATED));
+    store.add(permanent("p1", PunishmentType.BAN, "Cheating"));
+    store.save();
+
+    String before = Files.readString(file);
+
+    // Re-recording a player who has not moved or changed marks the store dirty
+    // without changing anything, which is the case a save has nothing to do about.
+    store.record(new PlayerRecord(TARGET, "Steve", "1.2.3.4", CREATED, CREATED));
+    assertTrue(store.isDirty());
+
+    store.save();
+
+    assertEquals(before, Files.readString(file));
+    assertFalse(store.isDirty());
+  }
+
+  @Test
+  @DisplayName("no temporary file is left behind after a save")
+  void saveLeavesNoTemporaryFile() {
+    store.add(permanent("p1", PunishmentType.BAN, "Cheating"));
+    store.save();
+
+    assertFalse(Files.exists(file.resolveSibling(file.getFileName() + ".tmp")));
+  }
+
+  @Test
+  @DisplayName("a save replaces the file instead of truncating it")
+  void saveLeavesAReadableFile() throws IOException {
+    store.add(permanent("p1", PunishmentType.BAN, "Cheating"));
+    store.save();
+    store.add(permanent("p2", PunishmentType.NOTE, "Note"));
+    store.save();
+
+    YamlStore reloaded = newStore();
+
+    reloaded.load();
+
+    assertEquals(List.of("p1", "p2"), ids(reloaded.punishments()));
+  }
 }

@@ -4,6 +4,7 @@ import com.itson.moderator.model.FreezeRecord;
 import com.itson.moderator.model.PlayerRecord;
 import com.itson.moderator.model.Punishment;
 import com.itson.moderator.model.Report;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -72,6 +73,18 @@ public interface ModerationStore {
    * and it only ever concerns one target.
    */
   @NotNull List<Punishment> punishments(@NotNull UUID target);
+
+  /**
+   * Forgets finished sanctions that closed before the given instant.
+   *
+   * <p>Only entries that are already closed are eligible. Anything still in force,
+   * and every note ever left, stays: pruning a live ban would unban somebody, and
+   * a note is the part of a history most likely to be read back months later.
+   *
+   * @param cutoff closed entries from before this instant are dropped
+   * @return how many entries were dropped
+   */
+  int pruneFinished(@NotNull Instant cutoff);
 
   /** Appends a report, used when a player files one. */
   void add(@NotNull Report report);

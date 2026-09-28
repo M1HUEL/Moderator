@@ -202,6 +202,7 @@ fire for whoever lacks it.
 | `muted-allowed-commands` | Exceptions to that, for authentication plugins. |
 | `freeze-blocks-interactions` | Refuse breaking, placing, using and picking up while frozen. |
 | `history-limit` | How many entries `/mod history` prints. |
+| `retention-days` | Days to keep a sanction after it is over. `0`, the default, keeps everything. |
 | `cooldowns` | Seconds between two actions by the same staff member. `0` disables. |
 
 **`messages`**: every line of text, in MiniMessage. Names, reasons and notes are
@@ -286,7 +287,18 @@ fine to version it or back it up alongside the server.
 Saving happens when a sanction is applied, when a report is closed, when a player
 quits, when a freeze starts or ends, periodically in the background, and once more
 on shutdown. A freeze is flushed the moment it is taken rather than waiting for
-the periodic save, because the inventory it protects is emptied right after. Entries that
+the periodic save, because the inventory it protects is emptied right after.
+
+Every write goes to a temporary file that is then moved into place, so a crash
+part way through a save leaves the previous file readable rather than a truncated
+one. A save whose contents would be identical to what is already on disk is
+skipped.
+
+`settings.retention-days` drops sanctions once they are over, which stops
+`data.yml` growing without bound on a long lived server. It is `0` by default and
+only ever removes entries that are already closed: anything still in force stays,
+and so does every note, since those are the records an appeal or a complaint about
+a staff member is settled with. It runs once on enable and logs what it removed. Entries that
 cannot be read are skipped with a console warning instead of failing the whole
 load.
 
