@@ -97,6 +97,7 @@ public final class ModeratorPlugin extends JavaPlugin {
 
     moderation = new ModerationService(this, config, store, mutes, players, Clock.systemUTC());
     moderation.reloadMutes();
+    reconcileBanLists();
 
     context = new ModContext(this, config, moderation, new TargetResolver(players), players, mutes, freeze, cooldowns,
         invsee);
@@ -184,6 +185,19 @@ public final class ModeratorPlugin extends JavaPlugin {
     }, EXPIRY_INTERVAL_TICKS, EXPIRY_INTERVAL_TICKS);
 
     getServer().getScheduler().runTaskTimer(this, store::save, FLUSH_INTERVAL_TICKS, FLUSH_INTERVAL_TICKS);
+  }
+
+  /**
+   * Checks the vanilla ban lists against the history, so a ban cannot quietly stop
+   * being a ban, and a finished one cannot quietly stay one.
+   */
+  private void reconcileBanLists() {
+    ModerationService.BanListReconciliation result = moderation.reconcileBanLists();
+
+    if (result.reasserted() > 0 || result.lifted() > 0 || result.conflicts() > 0) {
+      getLogger().info("Ban lists: re-applied " + result.reasserted() + ", lifted " + result.lifted() + ", "
+          + result.conflicts() + " conflict(s) left for staff to review.");
+    }
   }
 
   /**

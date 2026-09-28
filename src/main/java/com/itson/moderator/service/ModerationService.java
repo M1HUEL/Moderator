@@ -11,6 +11,7 @@ import com.itson.moderator.storage.ModerationStore;
 import com.itson.moderator.util.Addresses;
 import com.itson.moderator.util.Ids;
 import com.itson.moderator.util.Text;
+import com.destroystokyo.paper.profile.PlayerProfile;
 import io.papermc.paper.ban.BanListType;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
@@ -23,6 +24,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
+import org.bukkit.BanList;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -325,6 +327,140 @@ public final class ModerationService {
   }
 
   // ------------------------------------------------------------------ helpers
+
+  /**
+   * Brings the vanilla ban lists back in line with the history, on enable.
+   *
+   * <p>The store and the ban lists are two pieces of state kept in two files, and
+   * they drift apart in ways that matter:
+   *
+   * <ul>
+   * <li>A ban that is active in the history but missing from the list, because
+   * somebody ponsed the player by hand or another plugin touched the list, leaves
+   * the staff member who issued it believing the player is banned. The entry is
+   * added back.
+   * <li>A ban that was revoked or that expired while the server was down is still
+   * in the list, which is the worse case: the player cannot join and nothing in
+   * {@code /mod history} explains why. The entry is lifted.
+   * </ul>
+   *
+   * <p>Only entries this plugin put there are lifted. A ban whose source or reason
+   * does not match our record was placed by somebody else, by the owner or by
+   * another plugin, and is reported as a conflict rather than undone: a plugin
+   * that quietly unbans on a guess is a plugin that unblocks the wrong person.
+   *
+   * @return what the pass had to change
+   */
+  public BanListReconciliation reconcileBanLists() {
+    Instant now = now();
+    int reasserted = 0;
+    int lifted = 0;
+    int conflicts = 0;
+
+    for (Punishment punishment : store.punishments()) {
+      if (!punishment.type().isBanListBacked()) {
+        continue;
+      }
+
+      if (punishment.type() == PunishmentType.BAN_IP) {
+        Optional<InetAddress> address = Addresses.parse(punishment.targetIp());
+
+        if (address.isEmpty()) {
+          continue;
+        }
+
+        BanList<InetAddress> list = Bukkit.getBanList(BanListType.IP);
+        boolean listed = list.isBanned(address.get());
+
+        if (punishment.isActiveAt(now)) {
+          if (listed) {
+            continue;
+          }
+
+          banAddress(punishment);
+          reasserted++;
+          logReconciled("re-applied the IP ban of", punishment);
+        } else if (listed) {
+          if (!ours(list.getBanEntry(address.get()), punishment)) {
+            conflicts++;
+            logConflict(punishment);
+
+            continue;
+          }
+
+          pardonAddress(punishment);
+          lifted++;
+          logReconciled("lifted the finished IP ban of", punishment);
+        }
+
+        continue;
+      }
+
+      BanList<PlayerProfile> list = Bukkit.getBanList(BanListType.PROFILE);
+      PlayerProfile profile = Bukkit.createProfile(punishment.target(), punishment.targetName());
+      boolean listed = list.isBanned(profile);
+
+      if (punishment.isActiveAt(now)) {
+        if (listed) {
+          continue;
+        }
+
+        banProfile(punishment);
+        reasserted++;
+        logReconciled("re-applied the ban of", punishment);
+      } else if (listed) {
+        if (!ours(list.getBanEntry(profile), punishment)) {
+          conflicts++;
+          logConflict(punishment);
+
+          continue;
+        }
+
+        pardonProfile(punishment);
+        lifted++;
+        logReconciled("lifted the finished ban of", punishment);
+      }
+    }
+
+    return new BanListReconciliation(reasserted, lifted, conflicts);
+  }
+
+  /**
+   * Whether a ban list entry is the one this plugin wrote for a given sanction.
+   *
+   * <p>Compared on the staff member and the reason, because those are exactly the
+   * two fields the plugin supplies. A match means nobody has overwritten the entry
+   * since, so removing it is undoing our own work and not somebody else's.
+   */
+  private boolean ours(org.bukkit.BanEntry<?> entry, @NotNull Punishment punishment) {
+    if (entry == null) {
+      return false;
+    }
+
+    return punishment.staffName().equals(entry.getSource())
+        && vanillaReason(punishment).equals(entry.getReason());
+  }
+
+  private void logReconciled(@NotNull String action, @NotNull Punishment punishment) {
+    plugin.getLogger().info("Ban lists: " + action + " " + punishment.targetName() + " ("
+        + punishment.type().label() + ").");
+  }
+
+  private void logConflict(@NotNull Punishment punishment) {
+    plugin.getLogger().warning("Ban lists: " + punishment.targetName() + " is banned in the vanilla list by "
+        + "something other than this plugin, but the history says the sanction is over. Left it in place, "
+        + "unban it by hand if the server owner meant to keep it.");
+  }
+
+  /**
+   * What a pass over the ban lists changed.
+   *
+   * @param reasserted active sanctions that were missing from the list
+   * @param lifted     finished sanctions that were still in the list
+   * @param conflicts  entries somebody else owns, reported and left alone
+   */
+  public record BanListReconciliation(int reasserted, int lifted, int conflicts) {
+  }
 
   private List<Punishment> evaluateAutoPunish(Target target) {
     Instant now = now();

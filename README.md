@@ -209,6 +209,22 @@ fire for whoever lacks it.
 inserted literally, so text typed by a player can never be read as colour tags.
 `vanilla-reason` is plain text, because that is what the vanilla ban screen shows.
 
+**Ban lists**: `ban` and `banip` are enforced through Paper's own ban lists, which
+means `/pardon` and `/pardon-ip` work, and so does any other tool that reads them.
+Because the list and `data.yml` are two files that can drift apart, they are
+reconciled on every enable:
+
+- A ban the history says is active but that is missing from the list is added back.
+  Somebody who ponsed a player by hand does not silently undo a moderation decision.
+- A ban that was revoked, or that expired while the server was down, is lifted if it
+  is still in the list. The reverse case is the one that hurts: the player cannot
+  connect and nothing in `/mod history` says why.
+- An entry whose source or reason does not match the record was placed by somebody
+  else, by the owner or by another plugin. It is logged as a conflict and left
+  alone, because a plugin that unbans on a guess unblocks the wrong person.
+
+Each change is logged on startup with a count.
+
 **`reasons`**: the ids staff type after a sanction. Each has a `label` to display
 and, optionally, an `applies` list of the sanction types it may be used for.
 
