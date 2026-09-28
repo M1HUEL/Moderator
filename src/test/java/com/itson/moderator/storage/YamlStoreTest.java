@@ -37,6 +37,9 @@ class YamlStoreTest {
 
   private static final UUID REPORTER = UUID.fromString("33333333-3333-3333-3333-333333333333");
 
+  /** A second player, so the index can be checked for not leaking across targets. */
+  private static final UUID OTHER = UUID.fromString("44444444-4444-4444-4444-444444444444");
+
   private static final Instant CREATED = Instant.parse("2026-01-01T10:00:00Z");
 
   private Path file;
@@ -58,6 +61,22 @@ class YamlStoreTest {
   private static Punishment temporary(UUID id, PunishmentType type, Instant expiresAt) {
     return Punishment.temporary(id.toString(), TARGET, "Steve", "1.2.3.4", type, "spam", "Spam", STAFF, "Admin",
         CREATED, expiresAt);
+  }
+
+  /** A temporary sanction of the shared target, by readable id. */
+  private static Punishment temporary(String id, PunishmentType type, Instant expiresAt) {
+    return Punishment.temporary(id, TARGET, "Steve", "1.2.3.4", type, "spam", "Spam", STAFF, "Admin", CREATED,
+        expiresAt);
+  }
+
+  /** A permanent sanction of the shared target. */
+  private static Punishment permanent(String id, PunishmentType type, String reason) {
+    return Punishment.permanent(id, TARGET, "Steve", "1.2.3.4", type, null, reason, STAFF, "Admin", CREATED);
+  }
+
+  /** A permanent sanction of the second player, with their own name. */
+  private static Punishment permanentForOther(String id, PunishmentType type, String reason) {
+    return Punishment.permanent(id, OTHER, "Alex", "5.6.7.8", type, null, reason, STAFF, "Admin", CREATED);
   }
 
   @Test
@@ -362,5 +381,80 @@ class YamlStoreTest {
       float yaw, float pitch) {
     return new FreezeRecord(TARGET, "Steve", "Griefing", "Admin", CREATED, false, gameMode, true, true, health, 11,
         3.5f, 40, world, x, y, z, yaw, pitch, "Y29tbGVudHM=", "Y29tb3Vy", "Y29mZmhhbmQ=");
+  }
+
+  /**
+   * The per-target index is a copy of the flat list, so the two drifting apart
+   * would show a sanction as active to {@code /mod history} and gone to the mute
+   * cache. Each test compares the index against a scan of the real list.
+   */
+  @Test
+  @DisplayName("the per-target index holds exactly the entries of that player")
+  void targetIndexMatchesScan() {
+    store.add(temporary("p1", PunishmentType.MUTE, Instant.parse("2026-02-01T10:00:00Z")));
+    store.add(permanent("p2", PunishmentType.BAN, "Cheating"));
+    store.add(permanent("p3", PunishmentType.NOTE, "Cheating"));
+    store.add(permanentForOther("p4", PunishmentType.WARN, "Spam"));
+
+    assertEquals(List.of("p1", "p2", "p3"), ids(store.punishments(TARGET)));
+    assertEquals(List.of("p4"), ids(store.punishments(OTHER)));
+    assertEquals(List.of(), ids(store.punishments(UUID.randomUUID())));
+  }
+
+  @Test
+  @DisplayName("closing a sanction replaces it in the index instead of adding a second copy")
+  void targetIndexFollowsUpdate() {
+    store.add(temporary("p1", PunishmentType.MUTE, Instant.parse("2026-02-01T10:00:00Z")));
+
+    Punishment revoked = store.punishments(TARGET).get(0).revoke(CREATED, "Admin", "Appealed");
+
+    store.update(revoked);
+
+    assertEquals(1, store.punishments(TARGET).size());
+    assertEquals(1, store.punishments().size());
+    assertEquals(revoked, store.punishments(TARGET).get(0));
+    assertEquals(ids(store.punishments()), ids(store.punishments(TARGET)));
+  }
+
+  @Test
+  @DisplayName("an update for an id the store never saw is appended to both")
+  void updateAppendsUnknown() {
+    store.update(permanent("p9", PunishmentType.KICK, "Steve"));
+
+    assertEquals(List.of("p9"), ids(store.punishments()));
+    assertEquals(List.of("p9"), ids(store.punishments(TARGET)));
+  }
+
+  @Test
+  @DisplayName("the index survives a reload")
+  void targetIndexSurvivesReload() {
+    store.add(temporary("p1", PunishmentType.MUTE, Instant.parse("2026-02-01T10:00:00Z")));
+    store.add(permanentForOther("p4", PunishmentType.NOTE, "Spam"));
+    store.save();
+
+    YamlStore reloaded = newStore();
+
+    reloaded.load();
+
+    assertEquals(List.of("p1"), ids(reloaded.punishments(TARGET)));
+    assertEquals(List.of("p4"), ids(reloaded.punishments(OTHER)));
+  }
+
+  @Test
+  @DisplayName("a reload replaces the index rather than adding to the one already there")
+  void reloadClearsIndex() {
+    store.add(temporary("p1", PunishmentType.MUTE, Instant.parse("2026-02-01T10:00:00Z")));
+    store.save();
+
+    YamlStore reloaded = newStore();
+
+    reloaded.load();
+    reloaded.load();
+
+    assertEquals(1, reloaded.punishments(TARGET).size());
+  }
+
+  private static List<String> ids(List<Punishment> entries) {
+    return entries.stream().map(Punishment::id).toList();
   }
 }

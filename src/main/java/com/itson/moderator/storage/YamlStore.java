@@ -81,6 +81,16 @@ public final class YamlStore implements ModerationStore {
 
   private final List<Punishment> punishments = new ArrayList<>();
 
+  /**
+   * Secondary index of the same entries by target UUID.
+   *
+   * <p>Holds the same immutable records as {@link #punishments}, so the two cannot
+   * disagree. A punishment's target never changes after it is recorded, because
+   * closing one produces a copy that keeps the same target, which is what makes a
+   * per-target list safe to update in place.
+   */
+  private final Map<UUID, List<Punishment>> punishmentsByTarget = new HashMap<>();
+
   private final List<Report> reports = new ArrayList<>();
 
   /**
@@ -115,6 +125,7 @@ public final class YamlStore implements ModerationStore {
     players.clear();
     playersByName.clear();
     punishments.clear();
+    punishmentsByTarget.clear();
     reports.clear();
     freezes.clear();
     dirty = false;
@@ -208,6 +219,7 @@ public final class YamlStore implements ModerationStore {
   @Override
   public void add(@NotNull Punishment punishment) {
     punishments.add(punishment);
+    index(punishment);
     dirty = true;
   }
 
@@ -216,6 +228,7 @@ public final class YamlStore implements ModerationStore {
     for (int index = 0; index < punishments.size(); index++) {
       if (punishments.get(index).id().equals(punishment.id())) {
         punishments.set(index, punishment);
+        index(punishment);
         dirty = true;
 
         return;
@@ -223,12 +236,38 @@ public final class YamlStore implements ModerationStore {
     }
 
     punishments.add(punishment);
+    index(punishment);
     dirty = true;
   }
 
   @Override
   public @NotNull List<Punishment> punishments() {
     return List.copyOf(punishments);
+  }
+
+  @Override
+  public @NotNull List<Punishment> punishments(@NotNull UUID target) {
+    return List.copyOf(punishmentsByTarget.getOrDefault(target, List.of()));
+  }
+
+  /**
+   * Files a punishment under its target, replacing an earlier version of it.
+   *
+   * <p>The position in the list is kept, so closing a sanction does not move it to
+   * the end of that player's history and change the order of {@code /mod history}.
+   */
+  private void index(@NotNull Punishment punishment) {
+    List<Punishment> indexed = punishmentsByTarget.computeIfAbsent(punishment.target(), key -> new ArrayList<>());
+
+    for (int position = 0; position < indexed.size(); position++) {
+      if (indexed.get(position).id().equals(punishment.id())) {
+        indexed.set(position, punishment);
+
+        return;
+      }
+    }
+
+    indexed.add(punishment);
   }
 
   @Override
@@ -339,6 +378,7 @@ public final class YamlStore implements ModerationStore {
 
       if (punishment != null) {
         punishments.add(punishment);
+        index(punishment);
       }
     }
   }

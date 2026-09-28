@@ -121,8 +121,8 @@ public final class ModerationService {
     Instant now = now();
     List<Punishment> revoked = new ArrayList<>();
 
-    for (Punishment punishment : store.punishments()) {
-      if (!punishment.target().equals(target.id()) || punishment.type() != type || !punishment.isActiveAt(now)) {
+    for (Punishment punishment : store.punishments(target.id())) {
+      if (punishment.type() != type || !punishment.isActiveAt(now)) {
         continue;
       }
 
@@ -166,8 +166,8 @@ public final class ModerationService {
     Instant now = now();
     int count = 0;
 
-    for (Punishment punishment : store.punishments()) {
-      if (punishment.target().equals(target) && punishment.countsAt(now) && contains(types, punishment.type())) {
+    for (Punishment punishment : store.punishments(target)) {
+      if (punishment.countsAt(now) && contains(types, punishment.type())) {
         count++;
       }
     }
@@ -179,8 +179,7 @@ public final class ModerationService {
   public Optional<Punishment> active(@NotNull UUID target, @NotNull PunishmentType type) {
     Instant now = now();
 
-    return store.punishments().stream()
-        .filter(punishment -> punishment.target().equals(target))
+    return store.punishments(target).stream()
         .filter(punishment -> punishment.type() == type)
         .filter(punishment -> punishment.isActiveAt(now))
         .max(Comparator.comparing(Punishment::createdAt));
@@ -200,8 +199,7 @@ public final class ModerationService {
 
   /** Full history of a player, newest first. */
   public List<Punishment> history(@NotNull UUID target) {
-    return store.punishments().stream()
-        .filter(punishment -> punishment.target().equals(target))
+    return store.punishments(target).stream()
         .sorted(Comparator.comparing(Punishment::createdAt).reversed())
         .toList();
   }

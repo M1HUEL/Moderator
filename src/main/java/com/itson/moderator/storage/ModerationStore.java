@@ -63,6 +63,16 @@ public interface ModerationStore {
    */
   @NotNull List<Punishment> punishments();
 
+  /**
+   * Every punishment ever issued against one player, in insertion order.
+   *
+   * <p>Exists so that {@code /mod history}, the auto-punish counters and the
+   * active lookup do not walk the whole history of every player on the server.
+   * Looking up what is running against somebody is by far the most common query,
+   * and it only ever concerns one target.
+   */
+  @NotNull List<Punishment> punishments(@NotNull UUID target);
+
   /** Appends a report, used when a player files one. */
   void add(@NotNull Report report);
 
